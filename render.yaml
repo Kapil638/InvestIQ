@@ -1,0 +1,42 @@
+# Render Blueprint – https://render.com/docs/blueprint-spec
+# Deploy: connect GitHub repo → Render reads this file → create web service
+
+services:
+  - type: web
+    name: investiq-api
+    runtime: python
+    region: oregon
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements-prod.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.11"
+      - key: APP_ENV
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: CREW_VERBOSE
+        value: "false"
+      - key: YFINANCE_ENABLED
+        value: "true"
+      # ChromaDB: disable on Render free tier (ephemeral disk). Use Supabase for persistence.
+      - key: CHROMA_ENABLED
+        value: "false"
+      - key: STORAGE_ENABLED
+        value: "true"
+      # Set in Render dashboard (Secrets):
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: OPENROUTER_MODEL
+        sync: false
+      - key: TAVILY_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false

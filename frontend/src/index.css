@@ -1,0 +1,440 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: oklch(0.14 0.02 260);
+  --color-foreground: oklch(0.97 0.01 260);
+  --color-card: oklch(0.18 0.02 260);
+  --color-card-foreground: oklch(0.97 0.01 260);
+  --color-primary: oklch(0.72 0.17 155);
+  --color-primary-foreground: oklch(0.14 0.02 260);
+  --color-muted: oklch(0.24 0.02 260);
+  --color-muted-foreground: oklch(0.68 0.02 260);
+  --color-border: oklch(0.28 0.02 260);
+  --color-destructive: oklch(0.62 0.22 25);
+  --color-warning: oklch(0.78 0.15 85);
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    margin: 0;
+    min-height: 100vh;
+  }
+
+  #root {
+    min-height: 100vh;
+  }
+}
+
+@layer utilities {
+  .glass-card {
+    @apply border border-border/70 bg-card/60 backdrop-blur-xl;
+  }
+
+  .hero-glow {
+    @apply bg-gradient-to-br from-card/90 via-card/70 to-muted/20 backdrop-blur-sm;
+  }
+
+  .ai-modal {
+    @apply bg-gradient-to-b from-card/95 via-violet-950/20 to-card/95 backdrop-blur-xl;
+  }
+
+  .avengers-pipeline {
+    font-feature-settings: "tnum";
+  }
+
+  .avengers-agent-list {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(168, 85, 247, 0.35) transparent;
+  }
+
+  .avengers-agent-list::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .avengers-agent-list::-webkit-scrollbar-thumb {
+    background: rgba(168, 85, 247, 0.35);
+    border-radius: 4px;
+  }
+
+  @keyframes avengers-radar-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  @keyframes avengers-radar-sweep {
+    from { transform: rotate(0deg); opacity: 0.9; }
+    to { transform: rotate(360deg); opacity: 0.2; }
+  }
+
+  @keyframes avengers-pulse-glow {
+    0%, 100% { opacity: 0.55; filter: drop-shadow(0 0 4px rgba(167, 139, 250, 0.4)); }
+    50% { opacity: 1; filter: drop-shadow(0 0 14px rgba(167, 139, 250, 0.9)); }
+  }
+
+  @keyframes avengers-node-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(167, 139, 250, 0.5); }
+    50% { box-shadow: 0 0 0 6px rgba(167, 139, 250, 0); }
+  }
+
+  @keyframes avengers-card-glow {
+    0%, 100% { box-shadow: 0 0 20px rgba(124, 58, 237, 0.15); }
+    50% { box-shadow: 0 0 32px rgba(168, 85, 247, 0.35); }
+  }
+
+  @keyframes avengers-reactor-spin {
+    from { transform: translate(-50%, -50%) rotate(0deg); }
+    to { transform: translate(-50%, -50%) rotate(360deg); }
+  }
+
+  @keyframes avengers-reactor-pulse {
+    0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.85; }
+    50% { transform: translate(-50%, -50%) scale(1.06); opacity: 1; }
+  }
+
+  @keyframes avengers-progress-slide {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(250%); }
+  }
+
+  @keyframes avengers-heartbeat {
+    0%, 100% { transform: scaleX(0.6); opacity: 0.5; }
+    50% { transform: scaleX(1); opacity: 1; }
+  }
+
+  @keyframes avengers-orbit-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+  }
+
+  @keyframes avengers-orbit-spin {
+    from { transform: translate(-50%, -50%) rotate(0deg); }
+    to { transform: translate(-50%, -50%) rotate(360deg); }
+  }
+
+  @keyframes avengers-hex-pulse {
+    0%, 100% { transform: scale(1); filter: brightness(1); }
+    50% { transform: scale(1.12); filter: brightness(1.35); }
+  }
+
+  @keyframes avengers-ekg-draw {
+    0% { stroke-dashoffset: 48; opacity: 0.4; }
+    50% { opacity: 1; }
+    100% { stroke-dashoffset: 0; opacity: 0.4; }
+  }
+
+  @keyframes avengers-dot-pulse {
+    0%, 100% { opacity: 0.25; transform: scale(0.8); }
+    50% { opacity: 1; transform: scale(1.2); }
+  }
+
+  @keyframes avengers-scan {
+    0% { transform: translateY(-100%); }
+    100% { transform: translateY(100%); }
+  }
+
+  @keyframes avengers-beam-pulse {
+    0%, 100% { opacity: 0.15; }
+    50% { opacity: 0.75; }
+  }
+
+  @keyframes avengers-progress-grow {
+    0% { width: 8%; }
+    50% { width: 72%; }
+    100% { width: 38%; }
+  }
+
+  @keyframes avengers-logo-ring-spin {
+    from { transform: rotate(0deg); transform-origin: center; }
+    to { transform: rotate(360deg); transform-origin: center; }
+  }
+
+  @keyframes avengers-timer-blink {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+  }
+
+  .avengers-particle-flow-bg::before,
+  .avengers-particle-flow-bg::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(1px 1px at 20% 30%, rgba(168, 85, 247, 0.4) 0%, transparent 100%),
+      radial-gradient(1px 1px at 60% 70%, rgba(59, 130, 246, 0.35) 0%, transparent 100%),
+      radial-gradient(1px 1px at 80% 20%, rgba(20, 177, 166, 0.3) 0%, transparent 100%);
+    animation: avengers-particle-flow-right 8s linear infinite;
+    opacity: 0.5;
+    pointer-events: none;
+  }
+
+  .avengers-particle-flow-bg::after {
+    animation-delay: 4s;
+    opacity: 0.35;
+  }
+
+  .avengers-show-report-btn {
+    animation: avengers-show-report-glow 2.5s ease-in-out infinite;
+  }
+
+  @keyframes avengers-show-report-glow {
+    0%, 100% { box-shadow: 0 0 24px rgba(168, 85, 247, 0.4); }
+    50% { box-shadow: 0 0 40px rgba(168, 85, 247, 0.7); }
+  }
+
+  .avengers-hex {
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+  }
+
+  .avengers-hex-active {
+    animation: avengers-hex-pulse 1.4s ease-in-out infinite;
+  }
+
+  .avengers-orbit-spin {
+    animation: avengers-orbit-spin 24s linear infinite;
+  }
+
+  .avengers-orbit-item {
+    width: 0;
+    height: 0;
+  }
+
+  .avengers-reactor-ring-reverse {
+    animation: avengers-reactor-spin 14s linear infinite reverse;
+  }
+
+  .avengers-energy-beam {
+    background: linear-gradient(90deg, rgba(168, 85, 247, 0.7), rgba(168, 85, 247, 0));
+    animation: avengers-beam-pulse 1.6s ease-in-out infinite;
+  }
+
+  .avengers-particle-ring {
+    animation: avengers-reactor-spin 32s linear infinite;
+  }
+
+  .avengers-scanlines {
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 3px,
+      rgba(139, 92, 246, 0.04) 3px,
+      rgba(139, 92, 246, 0.04) 4px
+    );
+    animation: avengers-scan 4s linear infinite;
+  }
+
+  .avengers-reactor-core-inner {
+    animation: avengers-reactor-pulse 2s ease-in-out infinite;
+  }
+
+  .avengers-ekg polyline {
+    stroke-dasharray: 48;
+    animation: avengers-ekg-draw 1.8s ease-in-out infinite;
+  }
+
+  .avengers-data-dots span {
+    animation: avengers-dot-pulse 1.6s ease-in-out infinite;
+  }
+
+  .avengers-progress-fill {
+    animation: avengers-progress-grow 2.2s ease-in-out infinite;
+  }
+
+  .avengers-progress-glow {
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.55);
+  }
+
+  .avengers-logo-ring {
+    animation: avengers-logo-ring-spin 20s linear infinite;
+    transform-origin: center;
+  }
+
+  .avengers-timer-pulse {
+    animation: avengers-timer-blink 1.2s ease-in-out infinite;
+  }
+
+  .avengers-title-italic {
+    text-shadow: 0 0 24px rgba(167, 139, 250, 0.4);
+  }
+
+  .avengers-mission-panel {
+    position: relative;
+    box-shadow:
+      inset 0 0 60px rgba(124, 58, 237, 0.08),
+      0 0 40px rgba(124, 58, 237, 0.1);
+  }
+
+  .avengers-gradient-title {
+    background: linear-gradient(135deg, #c4b5fd 0%, #a78bfa 35%, #818cf8 65%, #38bdf8 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    text-shadow: none;
+    filter: drop-shadow(0 0 18px rgba(167, 139, 250, 0.35));
+  }
+
+  .avengers-logo-halo {
+    animation: avengers-reactor-pulse 3s ease-in-out infinite;
+  }
+
+  .avengers-reactor-stage {
+    perspective: 600px;
+  }
+
+  .avengers-orbit-ellipse {
+    transform-origin: center;
+    animation: avengers-orbit-ellipse-spin 20s linear infinite;
+  }
+
+  .avengers-orbit-ellipse-reverse {
+    transform-origin: center;
+    animation: avengers-orbit-ellipse-spin 26s linear infinite reverse;
+  }
+
+  @keyframes avengers-orbit-ellipse-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  @keyframes avengers-particle-float {
+    0%, 100% { transform: translateY(0) scale(1); opacity: 0.2; }
+    50% { transform: translateY(-8px) scale(1.3); opacity: 0.9; }
+  }
+
+  @keyframes avengers-line-pulse {
+    0%, 100% { opacity: 0.35; }
+    50% { opacity: 1; }
+  }
+
+  .avengers-particle {
+    animation: avengers-particle-float 3s ease-in-out infinite;
+  }
+
+  .avengers-line-pulse {
+    animation: avengers-line-pulse 1.5s ease-in-out infinite;
+  }
+
+  .avengers-core-grid {
+    background-image:
+      linear-gradient(rgba(147, 197, 253, 0.15) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(147, 197, 253, 0.15) 1px, transparent 1px);
+    background-size: 8px 8px;
+  }
+
+  .avengers-core-flare {
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.12) 0%, transparent 65%);
+    animation: avengers-reactor-pulse 2.4s ease-in-out infinite;
+  }
+
+  @keyframes avengers-particle-flow-right {
+    0% { transform: translateX(-12px) translateY(0); opacity: 0; }
+    20% { opacity: 0.7; }
+    100% { transform: translateX(48px) translateY(-4px); opacity: 0; }
+  }
+
+  @keyframes avengers-hex-breathe {
+    0%, 100% { transform: scale(1); filter: brightness(1); }
+    50% { transform: scale(1.06); filter: brightness(1.2); }
+  }
+
+  @keyframes avengers-orbit-spin-slow {
+    from { transform: translate(-50%, -50%) rotate(0deg); }
+    to { transform: translate(-50%, -50%) rotate(360deg); }
+  }
+
+  .avengers-particle-flow {
+    animation: avengers-particle-flow-right 3s ease-in-out infinite;
+  }
+
+  .avengers-hex-breathe {
+    animation: avengers-hex-breathe 2.8s ease-in-out infinite;
+  }
+
+  .avengers-orbit-spin-slow {
+    animation: avengers-orbit-spin-slow 36s linear infinite;
+  }
+
+  .avengers-radar-rotate .avengers-radar-sweep {
+    animation: avengers-radar-sweep 2s linear infinite;
+  }
+
+  .avengers-main-progress {
+    animation: avengers-progress-glow-pulse 2.5s ease-in-out infinite;
+  }
+
+  @keyframes avengers-progress-glow-pulse {
+    0%, 100% { filter: brightness(1); }
+    50% { filter: brightness(1.15); }
+  }
+
+  .avengers-radar-sweep {
+    background: conic-gradient(from 0deg, transparent 0deg, rgba(168, 85, 247, 0.55) 40deg, transparent 80deg);
+    animation: avengers-radar-sweep 2.4s linear infinite;
+  }
+
+  .avengers-logo-pulse {
+    animation: avengers-pulse-glow 2.2s ease-in-out infinite;
+  }
+
+  .avengers-node-pulse {
+    animation: avengers-node-pulse 1.8s ease-out infinite;
+  }
+
+  .avengers-card-running {
+    animation: avengers-card-glow 2s ease-in-out infinite;
+  }
+
+  @keyframes avengers-card-glow {
+    0%, 100% { box-shadow: 0 0 20px rgba(168, 85, 247, 0.2); }
+    50% { box-shadow: 0 0 36px rgba(168, 85, 247, 0.45); }
+  }
+
+  .avengers-reactor-core {
+    background: radial-gradient(circle, rgba(168, 85, 247, 0.55) 0%, rgba(59, 130, 246, 0.2) 45%, transparent 70%);
+    animation: avengers-reactor-pulse 2.8s ease-in-out infinite;
+  }
+
+  .avengers-reactor-ring {
+    animation: avengers-reactor-spin 18s linear infinite;
+  }
+
+  .avengers-reactor-ring-slow {
+    animation: avengers-reactor-spin 28s linear infinite reverse;
+  }
+
+  .avengers-progress-indeterminate {
+    width: 45%;
+    animation: avengers-progress-slide 1.6s ease-in-out infinite;
+  }
+
+  .avengers-progress-bar {
+    box-shadow: 0 0 16px rgba(168, 85, 247, 0.5);
+  }
+
+  .avengers-heartbeat {
+    animation: avengers-heartbeat 1.4s ease-in-out infinite;
+    transform-origin: center;
+  }
+
+  .avengers-orbit-active {
+    animation: avengers-orbit-pulse 1.6s ease-in-out infinite;
+  }
+
+  .avengers-badge-pulse {
+    animation: avengers-pulse-glow 1.8s ease-in-out infinite;
+  }
+
+  .avengers-title-glow {
+    text-shadow: 0 0 20px rgba(167, 139, 250, 0.35);
+  }
+
+  .avengers-beam {
+    animation: avengers-pulse-glow 1.2s ease-in-out infinite;
+  }
+}

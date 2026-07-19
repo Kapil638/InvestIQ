@@ -1,0 +1,29 @@
+# Production dependencies (Render / Docker) – no test packages
+
+# Web framework
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+
+# Configuration & validation
+pydantic>=2.10.0
+pydantic-settings>=2.6.0
+
+# HTTP client
+httpx>=0.28.0
+
+# Financial data
+yfinance>=0.2.40
+
+# AI agents
+crewai[google-genai]>=0.108.0
+
+# Database & vector store
+supabase>=2.10.0
+chromadb>=0.5.0
+
+# PDF export
+fpdf2>=2.8.0
+
+# Google Drive API (report PDF export)
+google-api-python-client>=2.160.0
+google-auth>=2.36.0
