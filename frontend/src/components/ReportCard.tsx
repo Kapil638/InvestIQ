@@ -13,6 +13,7 @@ interface ReportCardProps {
   report: ReportSummary
   selected?: boolean
   pdfReady?: boolean
+  driveConnected?: boolean
   onSelectedChange?: (reportId: string, selected: boolean) => void
   onDeleted?: (reportId: string) => void
   onReportUpdated?: (reportId: string, patch: Partial<ReportSummary>) => void
@@ -22,6 +23,7 @@ export function ReportCard({
   report,
   selected = false,
   pdfReady = false,
+  driveConnected = false,
   onSelectedChange,
   onDeleted,
   onReportUpdated,
@@ -187,21 +189,32 @@ export function ReportCard({
               {generatingPdf ? 'Generating PDF...' : 'Generate PDF'}
             </Button>
 
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={!canSaveToDrive || savingDrive}
-              onClick={(e) => void handleSaveToDrive(e)}
-              className="gap-2"
-            >
-              {savingDrive ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
+            {driveConnected || isSavedToDrive ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={!canSaveToDrive || savingDrive}
+                onClick={(e) => void handleSaveToDrive(e)}
+                className="gap-2"
+              >
+                {savingDrive ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Upload className="size-4" />
+                )}
+                {driveButtonLabel}
+              </Button>
+            ) : (
+              <a
+                href="/api/v1/google-drive/login"
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex h-8 items-center gap-2 rounded-lg border border-border/70 px-3 text-xs font-medium text-muted-foreground hover:bg-muted"
+              >
                 <Upload className="size-4" />
-              )}
-              {driveButtonLabel}
-            </Button>
+                Connect Google Drive
+              </a>
+            )}
 
             {isSavedToDrive && report.google_drive_url && (
               <a

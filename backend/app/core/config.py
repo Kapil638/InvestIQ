@@ -110,11 +110,21 @@ class Settings(BaseSettings):
     tapetide_mcp_read_only: bool = True
     tapetide_mcp_timeout_seconds: int = 20
 
-    # Google Drive API – report PDF export (service account; credentials stay server-side)
+    # Google Drive API – report PDF export
     google_drive_enabled: bool = False
+    google_drive_root_folder_id: str | None = None
+
+    # Service account path – kept for Workspace/Shared Drive setups; personal Gmail
+    # accounts cannot use this (service accounts have no storage quota of their own).
     google_drive_service_account_file: str | None = None
     google_drive_service_account_json: str | None = None
-    google_drive_root_folder_id: str | None = None
+
+    # OAuth user delegation – required for personal Gmail accounts. Uploads count
+    # against the authenticated user's own Drive quota. Tokens stay server-side.
+    google_drive_oauth_client_id: str | None = None
+    google_drive_oauth_client_secret: str | None = None
+    google_drive_oauth_redirect_url: str = "http://127.0.0.1:8002/api/v1/google-drive/callback"
+    google_drive_oauth_frontend_redirect_url: str = "http://localhost:5173/reports"
 
     # Search
     tavily_api_key: str | None = None
@@ -193,6 +203,13 @@ class Settings(BaseSettings):
     def tapetide_token_configured(self) -> bool:
         """True when Tapetide API token is set (value never logged)."""
         return _is_tapetide_token_set(self.tapetide_api_token)
+
+    @property
+    def google_drive_oauth_configured(self) -> bool:
+        """True when both Drive OAuth client id and secret are set (values never logged)."""
+        return _is_kite_credential_set(self.google_drive_oauth_client_id) and _is_kite_credential_set(
+            self.google_drive_oauth_client_secret
+        )
 
     @property
     def llm_retry_backoff_seconds_tuple(self) -> tuple[int, ...]:
@@ -294,6 +311,8 @@ def log_startup_config(app_settings: Settings | None = None) -> None:
     logger.info("Tapetide MCP enabled: %s", cfg.tapetide_mcp_enabled)
     logger.info("Tapetide MCP read-only: %s", cfg.tapetide_mcp_read_only)
     logger.info("Tapetide token configured: %s", cfg.tapetide_token_configured)
+    logger.info("Google Drive enabled: %s", cfg.google_drive_enabled)
+    logger.info("Google Drive OAuth configured: %s", cfg.google_drive_oauth_configured)
     logger.info("LLM provider: %s", cfg.llm_provider)
     logger.info("LLM configured: %s", bool(cfg.openrouter_api_key))
     logger.info("LLM selected model: %s", cfg.openrouter_model)

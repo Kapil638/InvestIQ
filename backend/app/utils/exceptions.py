@@ -59,3 +59,7 @@ class GoogleDriveNotConnectedError(InvestIQError):
 
 class GoogleDriveServiceError(InvestIQError):
     """Raised when Google Drive MCP returns an error or is unreachable."""
+
+
+class GoogleDriveAuthError(InvestIQError):
+    """Raised when Google Drive OAuth is missing, invalid, or expired."""

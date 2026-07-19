@@ -1,4 +1,4 @@
-"""Google Drive API client for report PDF uploads (service account)."""
+"""Google Drive API client for report PDF uploads (OAuth user delegation or service account)."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.core.config import Settings
+from app.services.google_drive_token_store import GoogleDriveTokenStore, get_google_drive_token_store
 from app.utils.exceptions import GoogleDriveNotConnectedError, GoogleDriveServiceError
 from app.utils.logging import get_logger
 
@@ -25,10 +26,20 @@ class DriveUploadResult:
 
 
 class GoogleDriveApiClient:
-    """Upload PDFs to Google Drive using a service account."""
+    """Upload PDFs to Google Drive.
 
-    def __init__(self, settings: Settings) -> None:
+    Prefers OAuth user delegation (required for personal Gmail accounts, since
+    bare service accounts have no storage quota of their own) and falls back to
+    a service account if one is configured (Workspace / Shared Drive setups).
+    """
+
+    def __init__(
+        self,
+        settings: Settings,
+        token_store: GoogleDriveTokenStore | None = None,
+    ) -> None:
         self._settings = settings
+        self._token_store = token_store or get_google_drive_token_store()
         self._service: Any | None = None
         self._folder_cache: dict[str, str] = {}
 
@@ -44,7 +55,8 @@ class GoogleDriveApiClient:
 
     def _has_credentials(self) -> bool:
         return bool(
-            self._settings.google_drive_service_account_file
+            self._token_store.is_authenticated()
+            or self._settings.google_drive_service_account_file
             or self._settings.google_drive_service_account_json
         )
 
@@ -53,7 +65,6 @@ class GoogleDriveApiClient:
             return self._service
 
         try:
-            from google.oauth2 import service_account
             from googleapiclient.discovery import build
         except ImportError as exc:
             raise GoogleDriveServiceError(
@@ -61,23 +72,58 @@ class GoogleDriveApiClient:
                 "Install with: pip install google-api-python-client google-auth"
             ) from exc
 
-        credentials = None
-        if self._settings.google_drive_service_account_json:
-            info = json.loads(self._settings.google_drive_service_account_json)
-            credentials = service_account.Credentials.from_service_account_info(
-                info, scopes=DRIVE_SCOPES
-            )
-        elif self._settings.google_drive_service_account_file:
-            credentials = service_account.Credentials.from_service_account_file(
-                self._settings.google_drive_service_account_file,
-                scopes=DRIVE_SCOPES,
-            )
+        credentials = self._oauth_credentials() or self._service_account_credentials()
 
         if credentials is None:
             raise GoogleDriveNotConnectedError("Google Drive is not connected.")
 
         self._service = build("drive", "v3", credentials=credentials, cache_discovery=False)
         return self._service
+
+    def _oauth_credentials(self) -> Any | None:
+        session = self._token_store.get_session()
+        if session is None:
+            return None
+
+        from google.oauth2.credentials import Credentials
+
+        credentials = Credentials(
+            token=session.access_token,
+            refresh_token=session.refresh_token,
+            token_uri=session.token_uri,
+            client_id=session.client_id,
+            client_secret=session.client_secret,
+            scopes=session.scopes,
+        )
+
+        # google-auth refreshes automatically on expiry via googleapiclient, but
+        # that refresh only lives on this in-memory Credentials object — persist
+        # the new access token back to the store so it survives past this request.
+        original_refresh = credentials.refresh
+
+        def _refresh_and_persist(request: Any) -> None:
+            original_refresh(request)
+            self._token_store.update_access_token(credentials.token, credentials.expiry)
+
+        credentials.refresh = _refresh_and_persist  # type: ignore[method-assign]
+        return credentials
+
+    def _service_account_credentials(self) -> Any | None:
+        if not (
+            self._settings.google_drive_service_account_file
+            or self._settings.google_drive_service_account_json
+        ):
+            return None
+
+        from google.oauth2 import service_account
+
+        if self._settings.google_drive_service_account_json:
+            info = json.loads(self._settings.google_drive_service_account_json)
+            return service_account.Credentials.from_service_account_info(info, scopes=DRIVE_SCOPES)
+        return service_account.Credentials.from_service_account_file(
+            self._settings.google_drive_service_account_file,
+            scopes=DRIVE_SCOPES,
+        )
 
     async def upload_pdf(
         self, *, folder_path: str, filename: str, pdf_bytes: bytes

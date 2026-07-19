@@ -7,11 +7,13 @@ from app.utils.exceptions import ConfigurationError
 from app.database.factory import create_report_repository, create_vector_store
 from app.providers.factory import (
     build_financial_data_service,
+    build_google_drive_auth_service,
     build_kite_auth_service,
     build_kite_service,
     build_company_search_service,
     build_tapetide_service,
 )
+from app.services.google_drive_auth_service import GoogleDriveAuthService
 from app.services.kite_auth_service import KiteAuthService
 from app.services.financial_data_service import FinancialDataService
 from app.services.kite_service import KiteService
@@ -42,6 +44,12 @@ def get_kite_auth_service(
     settings: Settings = Depends(resolve_settings),
 ) -> KiteAuthService:
     return build_kite_auth_service(settings)
+
+
+def get_google_drive_auth_service(
+    settings: Settings = Depends(resolve_settings),
+) -> GoogleDriveAuthService:
+    return build_google_drive_auth_service(settings)
 
 
 def get_kite_service(

@@ -205,6 +205,15 @@ export interface KiteStatusResponse {
   available_read_tools: string[]
 }
 
+export interface GoogleDriveStatusResponse {
+  enabled: boolean
+  oauth_configured: boolean
+  authenticated: boolean
+  connected: boolean
+  user_email?: string | null
+  message: string
+}
+
 export interface KiteQuoteResponse {
   symbol: string
   kite_symbol: string

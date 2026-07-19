@@ -5,6 +5,7 @@ import type {
   KiteQuoteResponse,
   KiteStatusResponse,
   TapetideStatusResponse,
+  GoogleDriveStatusResponse,
   PortfolioAnalyzeResponse,
   PortfolioHolding,
   PortfolioHoldingsResponse,
@@ -90,6 +91,10 @@ export function getKiteStatus(): Promise<KiteStatusResponse> {
 
 export function getTapetideStatus(): Promise<TapetideStatusResponse> {
   return request<TapetideStatusResponse>('/tapetide/status')
+}
+
+export function getGoogleDriveStatus(): Promise<GoogleDriveStatusResponse> {
+  return request<GoogleDriveStatusResponse>('/google-drive/status')
 }
 
 export function searchCompaniesApi(

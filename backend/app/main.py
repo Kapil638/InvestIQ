@@ -17,7 +17,19 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app import __version__
 from app.api.exception_handlers import register_exception_handlers
-from app.api.routes import advisor, financials, health, kite, market, portfolio, reports, research, search, tapetide
+from app.api.routes import (
+    advisor,
+    financials,
+    google_drive_auth,
+    health,
+    kite,
+    market,
+    portfolio,
+    reports,
+    research,
+    search,
+    tapetide,
+)
 from app.api.dependencies import init_storage_services
 from app.core.config import Settings, log_startup_config, reload_settings
 from app.providers.factory import (
@@ -108,6 +120,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(reports.router, prefix=app_settings.api_prefix)
     app.include_router(search.router, prefix=app_settings.api_prefix)
     app.include_router(advisor.router, prefix=app_settings.api_prefix)
+    app.include_router(google_drive_auth.router, prefix=app_settings.api_prefix)
 
     return app
 

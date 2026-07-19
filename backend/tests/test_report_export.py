@@ -66,7 +66,16 @@ def client(storage_service: ReportStorageService) -> TestClient:
 def _export_service(storage_service: ReportStorageService) -> ReportExportService:
     from app.services.google_drive_service import GoogleDriveService
 
-    settings = Settings(app_env="test", debug=True)
+    # Explicitly disable Drive regardless of the developer's real local .env —
+    # otherwise these tests silently inherit whatever Drive config happens to be
+    # set on the machine running them (and can even hit the live Drive API).
+    settings = Settings(
+        app_env="test",
+        debug=True,
+        google_drive_enabled=False,
+        google_drive_service_account_file=None,
+        google_drive_service_account_json=None,
+    )
     return ReportExportService(
         storage=storage_service,
         drive_service=GoogleDriveService(settings=settings),
@@ -173,7 +182,14 @@ def test_google_drive_not_connected_message() -> None:
 
 
 def test_google_drive_not_connected_without_credentials() -> None:
-    settings = Settings(google_drive_enabled=True)
+    # Explicit None here matters: without it, this picks up whatever
+    # GOOGLE_DRIVE_SERVICE_ACCOUNT_FILE happens to be set to in the real local
+    # .env, which defeats the point of this test on any machine with Drive configured.
+    settings = Settings(
+        google_drive_enabled=True,
+        google_drive_service_account_file=None,
+        google_drive_service_account_json=None,
+    )
     from app.providers.google_drive_api_client import GoogleDriveApiClient
 
     client = GoogleDriveApiClient(settings)

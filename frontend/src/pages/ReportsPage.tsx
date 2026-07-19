@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Loader2, Trash2 } from 'lucide-react'
 import { deleteReportsBulk, listReports } from '@/lib/api'
 import type { ReportSummary } from '@/types/api'
@@ -7,8 +8,11 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert } from '@/components/ui/alert'
+import { useGoogleDriveStatus } from '@/hooks/useGoogleDriveStatus'
 
 export function ReportsPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const { driveConnected, refetch: refetchDriveStatus } = useGoogleDriveStatus()
   const [reports, setReports] = useState<ReportSummary[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -18,6 +22,18 @@ export function ReportsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkDeleting, setBulkDeleting] = useState(false)
   const [pdfReadyIds, setPdfReadyIds] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    const connected = searchParams.get('drive_connected')
+    const errored = searchParams.get('drive_error')
+    if (connected === '1' || errored === '1') {
+      refetchDriveStatus()
+      if (errored === '1') {
+        setError('Failed to connect Google Drive. Please try again.')
+      }
+      setSearchParams({}, { replace: true })
+    }
+  }, [searchParams, refetchDriveStatus, setSearchParams])
 
   useEffect(() => {
     let cancelled = false
@@ -218,6 +234,7 @@ export function ReportsPage() {
               report={report}
               selected={selectedIds.has(report.id)}
               pdfReady={pdfReadyIds.has(report.id)}
+              driveConnected={driveConnected}
               onSelectedChange={handleSelectedChange}
               onDeleted={handleDeleted}
               onReportUpdated={handleReportUpdated}

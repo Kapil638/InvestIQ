@@ -8,6 +8,8 @@ from app.services.financial_data_service import FinancialDataService
 from app.services.kite_auth_service import KiteAuthService
 from app.services.kite_service import KiteService
 from app.services.kite_token_store import get_kite_token_store
+from app.services.google_drive_auth_service import GoogleDriveAuthService
+from app.services.google_drive_token_store import get_google_drive_token_store
 from app.services.tapetide_service import TapetideService
 from app.services.company_master_service import get_company_master_service
 from app.services.company_search_service import CompanySearchService
@@ -23,6 +25,10 @@ def build_financial_data_provider(settings: Settings) -> YahooFinanceProvider:
 
 def build_kite_auth_service(settings: Settings) -> KiteAuthService:
     return KiteAuthService(settings=settings, token_store=get_kite_token_store())
+
+
+def build_google_drive_auth_service(settings: Settings) -> GoogleDriveAuthService:
+    return GoogleDriveAuthService(settings=settings, token_store=get_google_drive_token_store())
 
 
 def build_kite_service(settings: Settings) -> KiteService:

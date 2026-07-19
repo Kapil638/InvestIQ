@@ -1,5 +1,5 @@
-import { getKiteStatus, getTapetideStatus } from '@/lib/api'
-import type { KiteStatusResponse, TapetideStatusResponse } from '@/types/api'
+import { getGoogleDriveStatus, getKiteStatus, getTapetideStatus } from '@/lib/api'
+import type { GoogleDriveStatusResponse, KiteStatusResponse, TapetideStatusResponse } from '@/types/api'
 
 const STATUS_TTL_MS = 60_000
 
@@ -10,8 +10,10 @@ type CacheEntry<T> = {
 
 let kiteEntry: CacheEntry<KiteStatusResponse> | null = null
 let tapetideEntry: CacheEntry<TapetideStatusResponse> | null = null
+let driveEntry: CacheEntry<GoogleDriveStatusResponse> | null = null
 let kiteInFlight: Promise<KiteStatusResponse> | null = null
 let tapetideInFlight: Promise<TapetideStatusResponse> | null = null
+let driveInFlight: Promise<GoogleDriveStatusResponse> | null = null
 
 const KITE_DISABLED: KiteStatusResponse = {
   enabled: false,
@@ -32,6 +34,14 @@ const TAPETIDE_DISABLED: TapetideStatusResponse = {
   available_read_tools: [],
 }
 
+const DRIVE_DISABLED: GoogleDriveStatusResponse = {
+  enabled: false,
+  oauth_configured: false,
+  authenticated: false,
+  connected: false,
+  message: 'Google Drive is not enabled.',
+}
+
 function isFresh<T>(entry: CacheEntry<T> | null): entry is CacheEntry<T> {
   return entry !== null && Date.now() - entry.ts < STATUS_TTL_MS
 }
@@ -39,6 +49,7 @@ function isFresh<T>(entry: CacheEntry<T> | null): entry is CacheEntry<T> {
 export function invalidateStatusCache(): void {
   kiteEntry = null
   tapetideEntry = null
+  driveEntry = null
 }
 
 export async function fetchKiteStatusCached(force = false): Promise<KiteStatusResponse> {
@@ -79,4 +90,24 @@ export async function fetchTapetideStatusCached(force = false): Promise<Tapetide
     })
 
   return tapetideInFlight
+}
+
+export async function fetchGoogleDriveStatusCached(force = false): Promise<GoogleDriveStatusResponse> {
+  if (!force && isFresh(driveEntry)) return driveEntry.data
+  if (!force && driveInFlight) return driveInFlight
+
+  driveInFlight = getGoogleDriveStatus()
+    .then((data) => {
+      driveEntry = { data, ts: Date.now() }
+      return data
+    })
+    .catch(() => {
+      driveEntry = { data: DRIVE_DISABLED, ts: Date.now() }
+      return DRIVE_DISABLED
+    })
+    .finally(() => {
+      driveInFlight = null
+    })
+
+  return driveInFlight
 }
