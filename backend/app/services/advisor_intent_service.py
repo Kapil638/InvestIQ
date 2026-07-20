@@ -143,7 +143,12 @@ class AdvisorIntentService:
         )
 
     async def _classify_llm(self, prompt: str) -> dict[str, Any]:
-        llm = await asyncio.to_thread(lambda: build_llm(self._settings, skip_probe=True))
+        # No skip_probe: this must go through the same verified-with-fallback
+        # acquisition as the main report pipeline (see LLMManager.acquire) —
+        # skip_probe returns the first model in the chain unverified when the
+        # process-wide probe cache is cold, with no fallback if it's actually
+        # unusable (wrong credits, deprecated model id, etc.).
+        llm = await asyncio.to_thread(lambda: build_llm(self._settings))
         raw = await asyncio.to_thread(
             call_llm_with_retry,
             llm,

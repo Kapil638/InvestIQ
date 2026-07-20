@@ -1,4 +1,11 @@
 import type {
+  AuthenticationResponseJSON,
+  PublicKeyCredentialCreationOptionsJSON,
+  PublicKeyCredentialRequestOptionsJSON,
+  RegistrationResponseJSON,
+} from '@simplewebauthn/browser'
+import type {
+  AuthStatusResponse,
   FinancialSummaryResponse,
   HistoricalCandle,
   HistoryInterval,
@@ -55,6 +62,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   try {
     response = await fetch(`${API_BASE}${path}`, {
       headers: { 'Content-Type': 'application/json', ...init?.headers },
+      credentials: 'include',
       ...init,
     })
   } catch {
@@ -95,6 +103,52 @@ export function getTapetideStatus(): Promise<TapetideStatusResponse> {
 
 export function getGoogleDriveStatus(): Promise<GoogleDriveStatusResponse> {
   return request<GoogleDriveStatusResponse>('/google-drive/status')
+}
+
+export function getAuthStatus(): Promise<AuthStatusResponse> {
+  return request<AuthStatusResponse>('/auth/me')
+}
+
+export function googleSignIn(idToken: string): Promise<AuthStatusResponse> {
+  return request<AuthStatusResponse>('/auth/google/signin', {
+    method: 'POST',
+    body: JSON.stringify({ id_token: idToken }),
+  })
+}
+
+export function logout(): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>('/auth/logout', { method: 'POST' })
+}
+
+export function getWebauthnRegistrationOptions(): Promise<PublicKeyCredentialCreationOptionsJSON> {
+  return request<PublicKeyCredentialCreationOptionsJSON>('/auth/webauthn/register/options', {
+    method: 'POST',
+  })
+}
+
+export function verifyWebauthnRegistration(
+  credential: RegistrationResponseJSON,
+  deviceLabel?: string,
+): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>('/auth/webauthn/register/verify', {
+    method: 'POST',
+    body: JSON.stringify({ credential, device_label: deviceLabel }),
+  })
+}
+
+export function getWebauthnAuthenticationOptions(): Promise<PublicKeyCredentialRequestOptionsJSON> {
+  return request<PublicKeyCredentialRequestOptionsJSON>('/auth/webauthn/authenticate/options', {
+    method: 'POST',
+  })
+}
+
+export function verifyWebauthnAuthentication(
+  credential: AuthenticationResponseJSON,
+): Promise<AuthStatusResponse> {
+  return request<AuthStatusResponse>('/auth/webauthn/authenticate/verify', {
+    method: 'POST',
+    body: JSON.stringify({ credential }),
+  })
 }
 
 export function searchCompaniesApi(
@@ -221,6 +275,7 @@ export async function downloadReportPdf(reportId: string): Promise<string> {
   try {
     response = await fetch(`${API_BASE}/reports/${reportId}/pdf`, {
       method: 'POST',
+      credentials: 'include',
     })
   } catch {
     throw new Error(

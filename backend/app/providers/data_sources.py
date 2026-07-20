@@ -5,6 +5,7 @@ LOCAL_MASTER_SOURCE = "local_master"
 NSE_SOURCE = "nse"
 KITE_SOURCE = "kite"
 YAHOO_SOURCE = "yahoo"
+CURATED_LARGE_CAP_SOURCE = "curated_large_cap"
 
 # Deprecated – kept for legacy response normalization only.
 NSE_BSE_MCP_SOURCE = "nse_bse_mcp"
@@ -16,6 +17,7 @@ SOURCE_LABELS: dict[str, str] = {
     KITE_SOURCE: "Kite",
     YAHOO_SOURCE: "Yahoo",
     NSE_BSE_MCP_SOURCE: "Tapetide NSE/BSE MCP",
+    CURATED_LARGE_CAP_SOURCE: "Curated Large-Cap List",
 }
 
 

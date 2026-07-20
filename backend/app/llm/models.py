@@ -9,6 +9,6 @@ def default_fallback_models() -> list[str]:
         "openai/gpt-4o-mini",
         "openai/gpt-4.1-mini",
         "google/gemini-2.5-flash",
-        "anthropic/claude-3.5-haiku",
+        "anthropic/claude-haiku-4.5",
         "deepseek/deepseek-chat",
     ]

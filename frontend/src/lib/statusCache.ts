@@ -1,7 +1,15 @@
-import { getGoogleDriveStatus, getKiteStatus, getTapetideStatus } from '@/lib/api'
-import type { GoogleDriveStatusResponse, KiteStatusResponse, TapetideStatusResponse } from '@/types/api'
+import { getAuthStatus, getGoogleDriveStatus, getKiteStatus, getTapetideStatus } from '@/lib/api'
+import type {
+  AuthStatusResponse,
+  GoogleDriveStatusResponse,
+  KiteStatusResponse,
+  TapetideStatusResponse,
+} from '@/types/api'
 
 const STATUS_TTL_MS = 60_000
+// Shorter TTL for auth: a stale "authenticated" read has higher stakes than a
+// stale Kite/Drive/Tapetide connection badge.
+const AUTH_STATUS_TTL_MS = 10_000
 
 type CacheEntry<T> = {
   data: T
@@ -11,9 +19,11 @@ type CacheEntry<T> = {
 let kiteEntry: CacheEntry<KiteStatusResponse> | null = null
 let tapetideEntry: CacheEntry<TapetideStatusResponse> | null = null
 let driveEntry: CacheEntry<GoogleDriveStatusResponse> | null = null
+let authEntry: CacheEntry<AuthStatusResponse> | null = null
 let kiteInFlight: Promise<KiteStatusResponse> | null = null
 let tapetideInFlight: Promise<TapetideStatusResponse> | null = null
 let driveInFlight: Promise<GoogleDriveStatusResponse> | null = null
+let authInFlight: Promise<AuthStatusResponse> | null = null
 
 const KITE_DISABLED: KiteStatusResponse = {
   enabled: false,
@@ -42,14 +52,25 @@ const DRIVE_DISABLED: GoogleDriveStatusResponse = {
   message: 'Google Drive is not enabled.',
 }
 
-function isFresh<T>(entry: CacheEntry<T> | null): entry is CacheEntry<T> {
-  return entry !== null && Date.now() - entry.ts < STATUS_TTL_MS
+const AUTH_DISABLED: AuthStatusResponse = {
+  authenticated: false,
+  owner_auth_configured: false,
+  has_passkey: false,
+}
+
+function isFresh<T>(entry: CacheEntry<T> | null, ttlMs: number = STATUS_TTL_MS): entry is CacheEntry<T> {
+  return entry !== null && Date.now() - entry.ts < ttlMs
 }
 
 export function invalidateStatusCache(): void {
   kiteEntry = null
   tapetideEntry = null
   driveEntry = null
+  authEntry = null
+}
+
+export function invalidateAuthStatusCache(): void {
+  authEntry = null
 }
 
 export async function fetchKiteStatusCached(force = false): Promise<KiteStatusResponse> {
@@ -110,4 +131,24 @@ export async function fetchGoogleDriveStatusCached(force = false): Promise<Googl
     })
 
   return driveInFlight
+}
+
+export async function fetchAuthStatusCached(force = false): Promise<AuthStatusResponse> {
+  if (!force && isFresh(authEntry, AUTH_STATUS_TTL_MS)) return authEntry.data
+  if (!force && authInFlight) return authInFlight
+
+  authInFlight = getAuthStatus()
+    .then((data) => {
+      authEntry = { data, ts: Date.now() }
+      return data
+    })
+    .catch(() => {
+      authEntry = { data: AUTH_DISABLED, ts: Date.now() }
+      return AUTH_DISABLED
+    })
+    .finally(() => {
+      authInFlight = null
+    })
+
+  return authInFlight
 }

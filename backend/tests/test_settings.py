@@ -61,7 +61,11 @@ def test_log_startup_config_does_not_raise() -> None:
 
 
 def test_resolved_llm_model_chain_uses_defaults() -> None:
-    cfg = Settings()
+    # openrouter_model is a required str (no None allowed) — pass the actual
+    # default explicitly rather than omitting it, since omitting it would pick
+    # up whatever OPENROUTER_MODEL happens to be set to in the real local .env,
+    # defeating the point of testing the "no override" default-chain behavior.
+    cfg = Settings(openrouter_model="openai/gpt-4o-mini")
     chain = cfg.resolved_llm_model_chain()
     assert chain[0] == "openai/gpt-4o-mini"
     assert chain[-1] == "deepseek/deepseek-chat"

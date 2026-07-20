@@ -3,8 +3,9 @@
 from fastapi import Depends, Request
 
 from app.core.config import Settings, reload_settings
-from app.utils.exceptions import ConfigurationError
-from app.database.factory import create_report_repository, create_vector_store
+from app.utils.exceptions import ConfigurationError, SessionRequiredError
+from app.database.factory import create_report_repository, create_user_repository, create_vector_store
+from app.database.repositories.base import UserRepository
 from app.providers.factory import (
     build_financial_data_service,
     build_google_drive_auth_service,
@@ -27,6 +28,7 @@ from app.services.report_chat_service import ReportChatService
 from app.services.report_export_service import ReportExportService
 from app.services.report_storage_service import ReportStorageService
 from app.services.google_drive_service import GoogleDriveService
+from app.services.owner_auth_service import OwnerAuthService, OwnerSessionData, SESSION_COOKIE_NAME
 from app.services.advisor_service import AdvisorService
 from app.services.research_ask_service import ResearchAskService
 from app.services.research_crew_service import ResearchCrewService
@@ -129,6 +131,51 @@ def get_report_storage_service(request: Request) -> ReportStorageService:
     return storage
 
 
+def get_user_repository(request: Request) -> UserRepository:
+    """Cached on app.state at startup (see init_storage_services).
+
+    IMPORTANT: must stay cached, not rebuilt per-request — a fresh
+    InMemoryUserRepository per call would silently lose all owner/credential
+    data immediately (see create_user_repository's docstring).
+    """
+    repo = getattr(request.app.state, "user_repository", None)
+    if repo is None:
+        settings = resolve_settings(request)
+        repo = create_user_repository(settings)
+    return repo
+
+
+def get_owner_auth_service(
+    settings: Settings = Depends(resolve_settings),
+    user_repo: UserRepository = Depends(get_user_repository),
+) -> OwnerAuthService:
+    return OwnerAuthService(settings=settings, user_repo=user_repo)
+
+
+async def require_owner_session(
+    request: Request,
+    settings: Settings = Depends(resolve_settings),
+    owner_auth: OwnerAuthService = Depends(get_owner_auth_service),
+) -> OwnerSessionData:
+    """Real server-side enforcement for the owner-auth gate.
+
+    Self-disabling: when ALLOWED_OWNER_EMAILS is unset (owner_auth_configured is
+    False), every route stays open exactly as before this gate existed.
+    """
+    if not settings.owner_auth_configured:
+        return OwnerSessionData(owner_id="dev-bypass", email="dev@local")
+
+    token = request.cookies.get(SESSION_COOKIE_NAME)
+    if not token:
+        raise SessionRequiredError("Sign-in required.")
+
+    session = owner_auth.verify_session_token(token)
+    if session is None:
+        raise SessionRequiredError("Session expired or invalid. Please sign in again.")
+
+    return session
+
+
 def get_google_drive_service(
     settings: Settings = Depends(resolve_settings),
 ) -> GoogleDriveService:
@@ -200,3 +247,9 @@ def init_storage_services(settings: Settings) -> tuple[ReportStorageService, Rag
     )
     rag = RagService(vector_store=vector_store)
     return storage, rag
+
+
+def init_user_repository(settings: Settings) -> UserRepository:
+    """Initialize the owner-user repository once for app lifespan (see
+    get_user_repository's docstring for why this must not be rebuilt per-request)."""
+    return create_user_repository(settings)

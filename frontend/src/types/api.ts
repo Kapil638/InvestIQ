@@ -214,6 +214,15 @@ export interface GoogleDriveStatusResponse {
   message: string
 }
 
+export interface AuthStatusResponse {
+  authenticated: boolean
+  owner_auth_configured: boolean
+  email?: string | null
+  display_name?: string | null
+  picture_url?: string | null
+  has_passkey: boolean
+}
+
 export interface KiteQuoteResponse {
   symbol: string
   kite_symbol: string

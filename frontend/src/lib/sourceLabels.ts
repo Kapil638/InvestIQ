@@ -12,6 +12,7 @@ const SOURCE_LABELS: Record<string, string> = {
   'Yahoo Finance': 'Yahoo',
   'NSE/BSE MCP': 'Tapetide NSE/BSE MCP',
   'Tapetide NSE/BSE MCP': 'Tapetide NSE/BSE MCP',
+  curated_large_cap: 'Curated Large-Cap List',
 }
 
 export function formatDataSourceLabel(source: string | null | undefined): string {

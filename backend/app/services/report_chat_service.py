@@ -69,8 +69,9 @@ class ReportChatService:
                 report_id, stored, cleaned
             )
 
+            # No skip_probe — see advisor_intent_service._classify_llm for why.
             llm = await asyncio.to_thread(
-                lambda: build_llm(self._settings, skip_probe=True)
+                lambda: build_llm(self._settings)
             )
             history_block = _format_history(prior_turns)
             prompt = (

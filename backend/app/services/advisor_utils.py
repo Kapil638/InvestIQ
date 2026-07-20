@@ -72,3 +72,19 @@ def sanitize_text_list(items: Any) -> list[str]:
 
 def candidate_blob(*parts: str | None) -> str:
     return " ".join(p for p in parts if p).lower()
+
+
+def market_cap_tier_preference(text: str | None) -> str | None:
+    """Extract a large/mid/small tier from a free-text market-cap preference
+    (e.g. the LLM-classified InvestorProfile.market_cap_preference field).
+    Returns None when no clear tier is expressed."""
+    if not text:
+        return None
+    lowered = text.lower()
+    if "large" in lowered or "blue chip" in lowered or "bluechip" in lowered:
+        return "large"
+    if "mid" in lowered:
+        return "mid"
+    if "small" in lowered or "micro" in lowered:
+        return "small"
+    return None

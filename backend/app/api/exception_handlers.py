@@ -11,13 +11,17 @@ from app.utils.exceptions import (
     ExternalServiceError,
     GoogleDriveNotConnectedError,
     GoogleDriveServiceError,
+    GoogleSignInError,
     InvestIQError,
     KiteAuthError,
     KiteBlockedToolError,
     KiteNotEnabledError,
     KiteServiceError,
+    OwnerNotAllowedError,
     ReportNotFoundError,
+    SessionRequiredError,
     TickerNotFoundError,
+    WebAuthnError,
 )
 
 logger = logging.getLogger(__name__)
@@ -110,6 +114,40 @@ def register_exception_handlers(app: FastAPI) -> None:
         return JSONResponse(
             status_code=502,
             content=_error_payload(str(exc), type(exc).__name__, 502),
+        )
+
+    @app.exception_handler(SessionRequiredError)
+    async def session_required_handler(
+        _request: Request, exc: SessionRequiredError
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=401,
+            content=_error_payload(str(exc), type(exc).__name__, 401),
+        )
+
+    @app.exception_handler(GoogleSignInError)
+    async def google_signin_error_handler(
+        _request: Request, exc: GoogleSignInError
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=401,
+            content=_error_payload(str(exc), type(exc).__name__, 401),
+        )
+
+    @app.exception_handler(OwnerNotAllowedError)
+    async def owner_not_allowed_handler(
+        _request: Request, exc: OwnerNotAllowedError
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=403,
+            content=_error_payload(str(exc), type(exc).__name__, 403),
+        )
+
+    @app.exception_handler(WebAuthnError)
+    async def webauthn_error_handler(_request: Request, exc: WebAuthnError) -> JSONResponse:
+        return JSONResponse(
+            status_code=400,
+            content=_error_payload(str(exc), type(exc).__name__, 400),
         )
 
     @app.exception_handler(ExternalServiceError)

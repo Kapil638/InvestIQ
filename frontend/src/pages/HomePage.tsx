@@ -23,6 +23,7 @@ import { AdvisorProfileSummary } from '@/components/advisor/AdvisorProfileSummar
 import { AdvisorResults, AdvisorPortfolioMix } from '@/components/advisor/AdvisorResults'
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { PasskeyEnrollBanner } from '@/components/auth/PasskeyEnrollBanner'
 
 export function HomePage() {
   const location = useLocation()
@@ -185,6 +186,7 @@ export function HomePage() {
 
   return (
     <div className="space-y-8">
+      <PasskeyEnrollBanner />
       <section className="hero-glow relative rounded-3xl border border-border/60 p-6 sm:p-8">
         <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-3xl">
           <div className="absolute -right-16 -top-16 size-48 rounded-full bg-primary/10 blur-3xl" />

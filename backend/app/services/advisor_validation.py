@@ -13,7 +13,13 @@ from app.llm.caller import call_llm_with_retry
 from app.schemas.advisor import CandidateValidation, InvestorProfile, THEME_MATCH_THRESHOLD
 from app.schemas.financial import FinancialSummaryResponse
 from app.services.advisor_scoring import rule_theme_score, score_financial_quality
-from app.services.advisor_utils import as_str_list, bare_symbol, candidate_blob, extract_json
+from app.services.advisor_utils import (
+    as_str_list,
+    bare_symbol,
+    candidate_blob,
+    extract_json,
+    market_cap_tier_preference,
+)
 from app.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -102,27 +108,54 @@ class AdvisorValidator:
         return validated, validations
 
     async def validate_market(
-        self, enriched: list[EnrichedCandidate]
+        self, enriched: list[EnrichedCandidate], profile: InvestorProfile | None = None
     ) -> tuple[list[EnrichedCandidate], list[CandidateValidation]]:
-        """Broad market-quality screen — no theme filter."""
+        """Broad market-quality screen — no theme filter, but this must still
+        reject candidates it can't actually verify or that don't match the
+        requested market-cap tier. Previously this accepted every candidate
+        unconditionally, which is how obscure shell/holding companies (e.g.
+        "XYZ Investment Company Ltd" — a common Indian small-cap NBFC naming
+        pattern) ended up recommended for a "large-cap" request: retrieval's
+        keyword fallback does plain company-name substring matching, and
+        nothing here filtered the results afterward.
+        """
         validated: list[EnrichedCandidate] = []
         validations: list[CandidateValidation] = []
         seen_sectors: set[str] = set()
+        cap_tier = market_cap_tier_preference(profile.market_cap_preference if profile else None)
 
         for item in enriched:
             snap = item.snapshot
+
+            # Can't verify anything about this candidate — don't present it as
+            # a researched recommendation.
+            if snap is None or snap.market_cap is None:
+                logger.debug(
+                    "Advisor market validation rejected %s: no financial snapshot/market cap",
+                    item.raw.symbol,
+                )
+                continue
+
+            if cap_tier is not None and _market_cap_tier(snap.market_cap) != cap_tier:
+                logger.debug(
+                    "Advisor market validation rejected %s: market cap tier mismatch "
+                    "(wanted %s, market_cap=%s)",
+                    item.raw.symbol,
+                    cap_tier,
+                    snap.market_cap,
+                )
+                continue
+
             quality = score_financial_quality(snap)
             base_score = quality if quality is not None else 58
-            if snap is None and quality is None:
-                base_score = 55
 
-            sector = (item.raw.sector or (snap.sector if snap else None) or "Unknown").strip()
+            sector = (item.raw.sector or snap.sector or "Unknown").strip()
             diversity_bonus = 5 if sector not in seen_sectors else 0
             seen_sectors.add(sector)
             score = min(100, max(60, base_score + diversity_bonus))
 
-            evidence = [f"Sector: {sector}"]
-            if snap and snap.roe is not None:
+            evidence = [f"Sector: {sector}", f"Market cap: {_format_market_cap(snap.market_cap)}"]
+            if snap.roe is not None:
                 evidence.append(f"ROE data available from {snap.fundamentals_source or snap.data_source}")
             if item.prior_report_summary:
                 evidence.append("Prior InvestIQ report available")
@@ -138,7 +171,12 @@ class AdvisorValidator:
             validated.append(item)
             validations.append(val)
 
-        logger.info("Advisor market validation: input=%d validated=%d", len(enriched), len(validated))
+        logger.info(
+            "Advisor market validation: input=%d validated=%d cap_tier=%s",
+            len(enriched),
+            len(validated),
+            cap_tier,
+        )
         return validated, validations
 
     def _rule_prefilter(
@@ -225,7 +263,8 @@ class AdvisorValidator:
             "JSON array:"
         )
 
-        llm = await asyncio.to_thread(lambda: build_llm(self._settings, skip_probe=True))
+        # No skip_probe — see advisor_intent_service._classify_llm for why.
+        llm = await asyncio.to_thread(lambda: build_llm(self._settings))
         raw = await asyncio.to_thread(
             call_llm_with_retry,
             llm,
@@ -311,3 +350,26 @@ def _is_unrelated_sector(blob: str, profile: InvestorProfile) -> bool:
         ):
             return True
     return False
+
+
+# Approximate SEBI-style Indian market-cap tiers, in INR. Large-cap ~top-100
+# companies (roughly >=Rs 20,000 cr), mid-cap the next band down to Rs 5,000
+# cr, small-cap below that. These are approximations for filtering, not
+# official rankings.
+_LARGE_CAP_MIN_INR = 200_000_000_000.0  # Rs 20,000 crore
+_MID_CAP_MIN_INR = 50_000_000_000.0  # Rs 5,000 crore
+
+
+def _market_cap_tier(market_cap: float) -> str:
+    if market_cap >= _LARGE_CAP_MIN_INR:
+        return "large"
+    if market_cap >= _MID_CAP_MIN_INR:
+        return "mid"
+    return "small"
+
+
+def _format_market_cap(market_cap: float) -> str:
+    crore = market_cap / 10_000_000
+    if crore >= 1000:
+        return f"₹{crore / 1000:.1f}k Cr"
+    return f"₹{crore:.0f} Cr"

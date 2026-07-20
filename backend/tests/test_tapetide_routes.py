@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock
 from fastapi.testclient import TestClient
 
 from app.api.dependencies import get_financial_data_service, get_tapetide_service
+from app.core.config import Settings
 from app.main import create_app
 from app.providers.data_sources import TAPETIDE_MCP_SOURCE
 from app.schemas.tapetide import TapetideQuoteResponse, TapetideStatusResponse
@@ -21,7 +22,7 @@ def test_tapetide_status_route() -> None:
         token_configured=True,
     )
 
-    app = create_app()
+    app = create_app(settings=Settings(app_env="test", debug=True))
     app.dependency_overrides[get_tapetide_service] = lambda: mock_service
     client = TestClient(app)
 
@@ -39,7 +40,7 @@ def test_tapetide_quote_route() -> None:
         source=TAPETIDE_MCP_SOURCE,
     )
 
-    app = create_app()
+    app = create_app(settings=Settings(app_env="test", debug=True))
     app.dependency_overrides[get_tapetide_service] = lambda: mock_service
     client = TestClient(app)
 
@@ -55,7 +56,7 @@ def test_market_history_route_source_field() -> None:
         source=TAPETIDE_MCP_SOURCE,
     )
 
-    app = create_app()
+    app = create_app(settings=Settings(app_env="test", debug=True))
     app.dependency_overrides[get_financial_data_service] = lambda: mock_financial
     client = TestClient(app)
 

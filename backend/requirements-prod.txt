@@ -27,3 +27,7 @@ fpdf2>=2.8.0
 # Google Drive API (report PDF export)
 google-api-python-client>=2.160.0
 google-auth>=2.36.0
+
+# Owner authentication gate – signed session cookies + WebAuthn/passkey verification
+itsdangerous>=2.2.0
+webauthn>=3.0.0

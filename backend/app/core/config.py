@@ -126,6 +126,24 @@ class Settings(BaseSettings):
     google_drive_oauth_redirect_url: str = "http://127.0.0.1:8002/api/v1/google-drive/callback"
     google_drive_oauth_frontend_redirect_url: str = "http://localhost:5173/reports"
 
+    # Owner authentication gate – single-owner allowlist + session signing.
+    # Self-disabling: when ALLOWED_OWNER_EMAILS is unset, the gate no-ops and every
+    # route stays open (see owner_auth_configured / require_owner_session).
+    allowed_owner_emails: str | None = None
+    session_secret_key: str | None = None
+    session_max_age_days: int = 30
+
+    # Google Sign-In (owner login identity) – a separate OAuth Client ID from
+    # GOOGLE_DRIVE_OAUTH_CLIENT_ID. Sign-In uses Google Identity Services (ID-token
+    # flow, "Authorized JavaScript origins"); Drive uses the authorization-code
+    # redirect flow. They are not interchangeable.
+    google_signin_client_id: str | None = None
+
+    # WebAuthn / passkey (platform authenticator unlock) – local dev only for now.
+    webauthn_rp_id: str = "localhost"
+    webauthn_rp_name: str = "InvestIQ"
+    webauthn_origin: str = "http://localhost:5173"
+
     # Search
     tavily_api_key: str | None = None
 
@@ -210,6 +228,24 @@ class Settings(BaseSettings):
         return _is_kite_credential_set(self.google_drive_oauth_client_id) and _is_kite_credential_set(
             self.google_drive_oauth_client_secret
         )
+
+    @property
+    def allowed_owner_emails_list(self) -> list[str]:
+        return [e.strip().lower() for e in (self.allowed_owner_emails or "").split(",") if e.strip()]
+
+    @property
+    def owner_auth_configured(self) -> bool:
+        """True when the owner-auth gate is turned on (allowlist non-empty).
+
+        When False, require_owner_session no-ops and every route stays open —
+        this is what keeps adding auth from breaking any existing behavior until
+        ALLOWED_OWNER_EMAILS is explicitly set.
+        """
+        return bool(self.allowed_owner_emails_list)
+
+    @property
+    def google_signin_configured(self) -> bool:
+        return _is_kite_credential_set(self.google_signin_client_id)
 
     @property
     def llm_retry_backoff_seconds_tuple(self) -> tuple[int, ...]:
@@ -313,6 +349,12 @@ def log_startup_config(app_settings: Settings | None = None) -> None:
     logger.info("Tapetide token configured: %s", cfg.tapetide_token_configured)
     logger.info("Google Drive enabled: %s", cfg.google_drive_enabled)
     logger.info("Google Drive OAuth configured: %s", cfg.google_drive_oauth_configured)
+    logger.info("Owner auth gate enabled: %s", cfg.owner_auth_configured)
+    if cfg.owner_auth_configured and not _is_kite_credential_set(cfg.session_secret_key):
+        logger.warning(
+            "SESSION_SECRET_KEY not set — using an ephemeral secret; "
+            "all sessions will be invalidated on every restart"
+        )
     logger.info("LLM provider: %s", cfg.llm_provider)
     logger.info("LLM configured: %s", bool(cfg.openrouter_api_key))
     logger.info("LLM selected model: %s", cfg.openrouter_model)

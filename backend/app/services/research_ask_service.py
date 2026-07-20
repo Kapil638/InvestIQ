@@ -42,7 +42,8 @@ class ResearchAskService:
         summary, profile, news_snippets = await self._gather_context(symbol, cleaned_question)
         context = self._build_context(summary, profile, news_snippets)
 
-        llm = await asyncio.to_thread(lambda: build_llm(self._settings, skip_probe=True))
+        # No skip_probe — see advisor_intent_service._classify_llm for why.
+        llm = await asyncio.to_thread(lambda: build_llm(self._settings))
         prompt = (
             f"{_ASK_SYSTEM}\n\n"
             f"CONTEXT:\n{context}\n\n"

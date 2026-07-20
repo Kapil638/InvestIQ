@@ -54,6 +54,12 @@ logger = get_logger(__name__)
 
 MAX_RECOMMENDATIONS = 5
 SNAPSHOT_TIMEOUT_SECONDS = 8.0
+# Enrichment fires one Yahoo Finance fetch per candidate (each itself several
+# concurrent sub-calls). Firing all of them at once for a full candidate batch
+# (up to MAX_RAW_CANDIDATES=30) saturates Yahoo's rate limiting and makes every
+# single request stall until SNAPSHOT_TIMEOUT_SECONDS — observed as literally
+# every candidate's snapshot failing identically at the timeout boundary.
+MAX_CONCURRENT_ENRICHMENTS = 6
 
 _RANK_SYSTEM = """Rank ONLY from the validated candidates list below.
 Return ONLY valid JSON:
@@ -165,7 +171,9 @@ class AdvisorService:
 
         async with async_timed_operation("advisor.validate"):
             if broad_market:
-                validated_enriched, validations = await self._validator.validate_market(enriched)
+                validated_enriched, validations = await self._validator.validate_market(
+                    enriched, profile
+                )
             else:
                 validated_enriched, validations = await self._validator.validate_all(profile, enriched)
 
@@ -332,17 +340,19 @@ class AdvisorService:
 
     async def _enrich_candidates(self, raw: list[RawCandidate]) -> list[EnrichedCandidate]:
         prior = await self._fetch_prior_reports([c.symbol for c in raw])
+        semaphore = asyncio.Semaphore(MAX_CONCURRENT_ENRICHMENTS)
 
         async def _one(candidate: RawCandidate) -> EnrichedCandidate:
             sym = candidate.symbol
             snap: FinancialSummaryResponse | None = None
-            try:
-                snap = await asyncio.wait_for(
-                    self._financial.get_summary(sym),
-                    timeout=SNAPSHOT_TIMEOUT_SECONDS,
-                )
-            except Exception as exc:
-                logger.debug("Enrich snapshot failed %s: %s", sym, exc)
+            async with semaphore:
+                try:
+                    snap = await asyncio.wait_for(
+                        self._financial.get_summary(sym),
+                        timeout=SNAPSHOT_TIMEOUT_SECONDS,
+                    )
+                except Exception as exc:
+                    logger.debug("Enrich snapshot failed %s: %s", sym, exc)
 
             industry = snap.industry if snap else None
             return EnrichedCandidate(
@@ -407,7 +417,8 @@ class AdvisorService:
 
         ranked_payload.sort(key=lambda x: x["overall_match_score"], reverse=True)
 
-        llm = await asyncio.to_thread(lambda: build_llm(self._settings, skip_probe=True))
+        # No skip_probe — see advisor_intent_service._classify_llm for why.
+        llm = await asyncio.to_thread(lambda: build_llm(self._settings))
         rank_prompt = (
             f"{_RANK_SYSTEM}\n\n"
             f"USER PROMPT:\n{prompt}\n\n"

@@ -141,7 +141,26 @@ class SupabaseReportRepository:
         offset: int = 0,
     ) -> tuple[list[ReportSummary], int]:
         def _fetch() -> tuple[list[dict], int]:
-            query = self._get_client().table(TABLE_NAME).select("*", count="exact")
+            # Select only what ReportSummary/resolve_report_summary actually need
+            # instead of "*" — report_json also holds full financial statements,
+            # news articles, and narrative text, which was being fetched and
+            # re-parsed on every list-page load for no reason (measured ~4s for
+            # 50 rows against Supabase). Also use an estimated count instead of
+            # exact: PostgREST's exact count runs a full COUNT(*) under RLS on
+            # every request, which was adding multi-second latency even on an
+            # empty result set (a report-history "total" doesn't need to be
+            # exact to the row for a personal tool).
+            query = (
+                self._get_client()
+                .table(TABLE_NAME)
+                .select(
+                    "id,ticker,company_name,guardrails_passed,generated_at,"
+                    "pdf_generated_at,google_drive_file_id,google_drive_url,google_drive_saved_at,"
+                    "report_json->confidence_score,report_json->recommendation,"
+                    "report_json->investment_committee",
+                    count="estimated",
+                )
+            )
             if ticker:
                 query = query.eq("ticker", ticker.upper())
             response = (
@@ -280,7 +299,21 @@ def _from_row(row: dict[str, Any]) -> StoredResearchReport:
 
 
 def _to_summary(row: dict[str, Any]) -> ReportSummary:
-    report = ResearchReportResponse.model_validate(row["report_json"])
+    """Build a summary from the lean list_reports() projection.
+
+    Unlike _from_row (full report detail), this reconstructs only the minimal
+    fields resolve_report_summary() needs (ticker is the only required field on
+    ResearchReportResponse; everything else defaults to None/empty), since
+    list_reports() no longer fetches the full report_json blob.
+    """
+    partial_report = {
+        "ticker": row["ticker"],
+        "generated_at": row["generated_at"],
+        "confidence_score": row.get("confidence_score"),
+        "recommendation": row.get("recommendation"),
+        "investment_committee": row.get("investment_committee"),
+    }
+    report = ResearchReportResponse.model_validate(partial_report)
     rating, confidence = resolve_report_summary(report)
     export_fields = _export_fields_from_row(row)
     return ReportSummary(

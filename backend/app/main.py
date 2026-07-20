@@ -12,13 +12,14 @@ from collections.abc import AsyncIterator
 
 import time
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import __version__
 from app.api.exception_handlers import register_exception_handlers
 from app.api.routes import (
     advisor,
+    auth,
     financials,
     google_drive_auth,
     health,
@@ -30,7 +31,7 @@ from app.api.routes import (
     search,
     tapetide,
 )
-from app.api.dependencies import init_storage_services
+from app.api.dependencies import init_storage_services, init_user_repository, require_owner_session
 from app.core.config import Settings, log_startup_config, reload_settings
 from app.providers.factory import (
     build_company_search_service,
@@ -70,6 +71,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             kite_service=build_kite_service(app_settings),
             symbol_resolver=get_symbol_resolver_service(),
         )
+        app.state.user_repository = init_user_repository(app_settings)
         if app_settings.storage_enabled:
             storage, rag = init_storage_services(app_settings)
             app.state.report_storage = storage
@@ -110,17 +112,23 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             )
         return response
 
-    app.include_router(health.router, prefix=app_settings.api_prefix)
-    app.include_router(financials.router, prefix=app_settings.api_prefix)
-    app.include_router(tapetide.router, prefix=app_settings.api_prefix)
-    app.include_router(market.router, prefix=app_settings.api_prefix)
-    app.include_router(kite.router, prefix=app_settings.api_prefix)
-    app.include_router(portfolio.router, prefix=app_settings.api_prefix)
-    app.include_router(research.router, prefix=app_settings.api_prefix)
-    app.include_router(reports.router, prefix=app_settings.api_prefix)
-    app.include_router(search.router, prefix=app_settings.api_prefix)
-    app.include_router(advisor.router, prefix=app_settings.api_prefix)
-    app.include_router(google_drive_auth.router, prefix=app_settings.api_prefix)
+    # Owner-auth gate: applied at this single choke point so no existing route
+    # file needs to change. Self-disabling when ALLOWED_OWNER_EMAILS is unset
+    # (see require_owner_session) — every route below stays open until then.
+    _guard = [Depends(require_owner_session)]
+
+    app.include_router(health.router, prefix=app_settings.api_prefix)  # unguarded — Render health probe
+    app.include_router(auth.router, prefix=app_settings.api_prefix)  # mixed public/protected internally
+    app.include_router(financials.router, prefix=app_settings.api_prefix, dependencies=_guard)
+    app.include_router(tapetide.router, prefix=app_settings.api_prefix, dependencies=_guard)
+    app.include_router(market.router, prefix=app_settings.api_prefix, dependencies=_guard)
+    app.include_router(kite.router, prefix=app_settings.api_prefix, dependencies=_guard)
+    app.include_router(portfolio.router, prefix=app_settings.api_prefix, dependencies=_guard)
+    app.include_router(research.router, prefix=app_settings.api_prefix, dependencies=_guard)
+    app.include_router(reports.router, prefix=app_settings.api_prefix, dependencies=_guard)
+    app.include_router(search.router, prefix=app_settings.api_prefix, dependencies=_guard)
+    app.include_router(advisor.router, prefix=app_settings.api_prefix, dependencies=_guard)
+    app.include_router(google_drive_auth.router, prefix=app_settings.api_prefix, dependencies=_guard)
 
     return app
 

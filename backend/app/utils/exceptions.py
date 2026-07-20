@@ -63,3 +63,19 @@ class GoogleDriveServiceError(InvestIQError):
 
 class GoogleDriveAuthError(InvestIQError):
     """Raised when Google Drive OAuth is missing, invalid, or expired."""
+
+
+class SessionRequiredError(InvestIQError):
+    """Raised when a protected route is hit without a valid owner session."""
+
+
+class GoogleSignInError(InvestIQError):
+    """Raised when a Google ID token is missing, invalid, expired, or fails verification."""
+
+
+class OwnerNotAllowedError(InvestIQError):
+    """Raised when a verified Google identity is not on the owner allowlist."""
+
+
+class WebAuthnError(InvestIQError):
+    """Raised when WebAuthn registration or authentication verification fails."""

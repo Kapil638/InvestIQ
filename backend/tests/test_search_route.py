@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock
 from fastapi.testclient import TestClient
 
 from app.api.dependencies import get_company_search_service
+from app.core.config import Settings
 from app.main import create_app
 from app.providers.data_sources import NSE_SOURCE
 from app.schemas.company_search import CompanySearchResponse, CompanySearchResult
@@ -25,7 +26,7 @@ def test_search_companies_route() -> None:
         source=NSE_SOURCE,
     )
 
-    app = create_app()
+    app = create_app(settings=Settings(app_env="test", debug=True))
     app.dependency_overrides[get_company_search_service] = lambda: mock_service
     client = TestClient(app)
 
