@@ -233,6 +233,44 @@ async def test_run_builds_evidence_corpus_once(
 
 
 @pytest.mark.asyncio
+async def test_risk_and_recommendation_stages_use_compact_context(
+    crew_settings: Settings,
+    news_data: NewsResearchResponse,
+) -> None:
+    """Risk/Recommendation should get the trimmed context (they already have the
+    Analysis narrative); Analysis should still get the full multi-year history."""
+    financial_data_multi_period = FinancialResearchResponse(
+        ticker="AAPL",
+        collected_at=datetime.now(UTC),
+        profile=CompanyProfile(symbol="AAPL", company_name="Apple Inc."),
+        income_statements=[
+            IncomeStatement(date="2026-03-28", revenue=1000000),
+            IncomeStatement(date="2025-03-28", revenue=900000),
+            IncomeStatement(date="2024-03-28", revenue=800000),
+        ],
+    )
+    service = ResearchCrewService(settings=crew_settings)
+
+    with ExitStack() as stack:
+        mock_llm, mock_pairs = _enter_pipeline_mocks(
+            service, financial_data_multi_period, news_data, stack
+        )
+        mock_llm.return_value = MagicMock()
+        mock_pairs.return_value = {}
+        await service.run("AAPL")
+
+        analysis_context = service._run_analysis_crew.call_args.args[1]["research_context"]
+        risk_context = service._run_risk_crew.call_args.args[1]["research_context"]
+        rec_context = service._run_recommendation_crew.call_args.args[1]["research_context"]
+
+    assert "2024-03-28" in analysis_context
+    assert "2024-03-28" not in risk_context
+    assert "2024-03-28" not in rec_context
+    assert "2026-03-28" in risk_context
+    assert "2026-03-28" in rec_context
+
+
+@pytest.mark.asyncio
 async def test_risk_guardrail_failure_does_not_block_report(
     crew_settings: Settings,
     financial_data: FinancialResearchResponse,

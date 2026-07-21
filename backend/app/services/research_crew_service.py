@@ -42,6 +42,7 @@ from app.services.portfolio_research_context import format_portfolio_context_for
 from app.services.report_storage_service import ReportStorageService
 from app.services.rag_service import RagService
 from app.services.research_context_builder import build_research_context
+from app.services.symbol_resolver_service import get_symbol_resolver_service
 from app.services.stage_cache import (
     cache_key_for_analysis,
     cache_key_for_recommendation,
@@ -114,11 +115,19 @@ class ResearchCrewService:
                 )
 
         chroma_context = ""
+        tracer.start("rag")
         if rag and rag.is_enabled:
             try:
                 chroma_context = await rag.get_context_for_ticker(symbol, limit=4)
+                tracer.complete(
+                    "rag",
+                    detail=f"{len(chroma_context)} chars matched" if chroma_context else "no matches",
+                )
             except Exception as exc:  # noqa: BLE001 — memory must not block research
                 logger.warning("RAG institutional memory unavailable for %s: %s", symbol, exc)
+                tracer.fail("rag", error=str(exc))
+        else:
+            tracer.skip("rag", reason="rag_disabled")
 
         portfolio_context = await self._load_portfolio_context(symbol, holdings_service)
 
@@ -300,6 +309,9 @@ class ResearchCrewService:
         financial_service = build_financial_data_service(self._settings)
         news_service = NewsResearchService(tavily_client=tavily_client)
 
+        resolved = get_symbol_resolver_service().resolve_query(symbol)
+        company_name = resolved.company_name if resolved else None
+
         fin_cache_hit = ttl_cache.get("financial", f"collect:{symbol}") is not None
         news_cache_hit = get_stage("news", symbol) is not None
 
@@ -323,7 +335,7 @@ class ResearchCrewService:
                 if cached is not None:
                     tracer.complete("news", cache_hit=True)
                     return cached
-                result = await news_service.collect(symbol)
+                result = await news_service.collect(symbol, company_name=company_name)
                 set_stage("news", symbol, result)
                 tracer.complete("news", cache_hit=news_cache_hit)
                 data_sources.append("tavily")
@@ -456,7 +468,7 @@ class ResearchCrewService:
                 pairs,
                 {
                     "ticker": context.ticker,
-                    "research_context": context.to_agent_prompt_block(),
+                    "research_context": context.to_agent_prompt_block(compact=True),
                     "analysis": analysis_output.narrative,
                     "analysis_scores": analysis_output.scores.model_dump_json(),
                 },
@@ -528,7 +540,7 @@ class ResearchCrewService:
             pairs,
             {
                 "ticker": context.ticker,
-                "research_context": context.to_agent_prompt_block(),
+                "research_context": context.to_agent_prompt_block(compact=True),
                 "analysis": analysis_output.narrative,
                 "analysis_scores": analysis_output.scores.model_dump_json(),
                 "risk_narrative": risk_output.narrative,

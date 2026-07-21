@@ -26,6 +26,8 @@ class ResearchContext(BaseModel):
     news_data: NewsResearchResponse | None = None
     financial_summary: str = ""
     news_summary: str = ""
+    financial_summary_compact: str = ""
+    news_summary_compact: str = ""
     data_snapshot_hash: str = ""
     latest_price: float | None = None
     valuation_metrics: dict[str, float | None] = Field(default_factory=dict)
@@ -37,14 +39,22 @@ class ResearchContext(BaseModel):
     guardrails: GuardrailResult | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
 
-    def to_agent_prompt_block(self) -> str:
-        """Serialize context for CrewAI task inputs."""
+    def to_agent_prompt_block(self, *, compact: bool = False) -> str:
+        """Serialize context for CrewAI task inputs.
+
+        compact=True uses the trimmed financial/news summaries - for the
+        Risk/Recommendation stages, which already receive the Analysis
+        narrative built from the full data and don't need the same full
+        multi-year history and news snippet text repeated in their prompt.
+        """
+        financial_summary = self.financial_summary_compact if compact else self.financial_summary
+        news_summary = self.news_summary_compact if compact else self.news_summary
         parts = [
             f"TICKER: {self.ticker}",
             f"COMPANY: {self.company_name or self.ticker}",
             f"DATA_SNAPSHOT_HASH: {self.data_snapshot_hash}",
-            f"FINANCIAL_SUMMARY:\n{self.financial_summary}",
-            f"NEWS_SUMMARY:\n{self.news_summary}",
+            f"FINANCIAL_SUMMARY:\n{financial_summary}",
+            f"NEWS_SUMMARY:\n{news_summary}",
         ]
         if self.market_sentiment:
             parts.append(f"MARKET_SENTIMENT: {self.market_sentiment}")

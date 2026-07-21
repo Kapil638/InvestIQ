@@ -78,7 +78,7 @@ class Settings(BaseSettings):
     guardrail_collection_max_age_hours: int = 24
     guardrail_statement_max_age_months: int = 18
     guardrail_news_max_age_days: int = 30
-    guardrail_max_analysis_retries: int = 1
+    guardrail_max_analysis_retries: int = 2
     guardrail_block_on_warnings: bool = False
 
     # Financial data

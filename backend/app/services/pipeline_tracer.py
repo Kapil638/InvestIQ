@@ -11,6 +11,7 @@ from app.schemas.research import PipelineStageTrace
 PipelineStage = Literal[
     "financial",
     "news",
+    "rag",
     "analysis",
     "risk",
     "guardrails",

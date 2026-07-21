@@ -52,6 +52,12 @@ def build_research_context(
         news_data=news_data,
         financial_summary=format_financial_summary(financial_data) if financial_data else "",
         news_summary=format_news_summary(news_data) if news_data else "",
+        financial_summary_compact=(
+            format_financial_summary(financial_data, compact=True) if financial_data else ""
+        ),
+        news_summary_compact=(
+            format_news_summary(news_data, compact=True) if news_data else ""
+        ),
         data_snapshot_hash=data_hash,
         latest_price=latest_price,
         valuation_metrics=valuation_metrics,
