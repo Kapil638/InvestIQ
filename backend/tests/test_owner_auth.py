@@ -158,7 +158,16 @@ def test_session_token_rejects_tampered_token(
     auth = OwnerAuthService(gate_settings, user_repo=user_repo)
     token = auth.create_session_token("owner-1", "kapil.singh20591@gmail.com")
 
-    tampered = token[:-1] + ("a" if token[-1] != "a" else "b")
+    # Corrupt a character in the payload segment (not the last character of
+    # the whole token) - flipping only the final base64url character was
+    # flaky: that position sometimes carries redundant/padding bits that can
+    # decode to the same byte value despite the character differing, letting
+    # a "tampered" token verify by chance depending on the embedded timestamp.
+    mid = len(token) // 2
+    original_char = token[mid]
+    replacement = "a" if original_char != "a" else "b"
+    tampered = token[:mid] + replacement + token[mid + 1 :]
+
     assert auth.verify_session_token(tampered) is None
 
 

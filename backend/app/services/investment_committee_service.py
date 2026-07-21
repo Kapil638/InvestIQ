@@ -80,8 +80,12 @@ class InvestmentCommitteeService:
         confidence: int,
         sources_used: list[str],
     ) -> AnalystOpinion:
-        points = _split_lines(report.financial_data_summary, max_items=5)
-        if not points and report.analysis:
+        # financial_data_summary is a JSON blob built for LLM prompt context
+        # (see research_formatters.format_financial_summary), not for display -
+        # it must never be split into UI bullet points directly, or raw JSON
+        # lines like `"ticker": "X",` leak straight into the card.
+        points: list[str] = []
+        if report.analysis:
             points = _lines_matching(report.analysis, _SENTIMENT, max_items=4)
         if not points and report.recommendation:
             points = [report.recommendation.reasoning[:280]] if report.recommendation.reasoning else []
@@ -116,9 +120,26 @@ class InvestmentCommitteeService:
         news_text = report.news_research_summary or ""
         delta = _sentiment_delta(news_text)
         rating = _tilt_rating(base, 1 if delta > 5 else (-1 if delta < -5 else 0))
-        points = _split_lines(news_text, max_items=5)
-        if not points and report.news_data and report.news_data.articles:
-            points = [a.title for a in report.news_data.articles[:4] if a.title]
+        # news_research_summary is a JSON blob built for LLM prompt context
+        # (see research_formatters.format_news_summary) - never split it
+        # directly for display. Pull real headlines from the structured
+        # article lists instead (the previous `.articles` fallback referenced
+        # a field that doesn't exist on NewsResearchResponse and would have
+        # raised AttributeError if it were ever reached).
+        points: list[str] = []
+        if report.news_data:
+            for group in (
+                report.news_data.latest_news,
+                report.news_data.earnings_and_filings,
+                report.news_data.sector_news,
+            ):
+                for article in group:
+                    if article.title:
+                        points.append(article.title)
+                    if len(points) >= 5:
+                        break
+                if len(points) >= 5:
+                    break
 
         return AnalystOpinion(
             id=AnalystPersonaId.NEWS,
