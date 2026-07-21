@@ -28,6 +28,12 @@ logger = get_logger(__name__)
 
 DATA_SOURCE_LABEL = "Yahoo Finance"
 
+# Transient failures (DNS blips, connection resets) are common against a
+# single external provider with no fallback - retry a couple of times with
+# short backoff before surfacing a hard error. Ticker-not-found is excluded
+# below since retrying it can't help.
+_RETRY_BACKOFF_SECONDS = (1.0, 2.0)
+
 
 def _series_value(series: Any, *keys: str) -> float | None:
     for key in keys:
@@ -324,16 +330,41 @@ class YahooFinanceProvider:
 
     async def _call(self, method: str, ticker: str, fn, *args):
         logger.info("YahooFinanceProvider.%s ticker=%s", method, ticker)
-        try:
-            return await asyncio.to_thread(fn, ticker, *args)
-        except TickerNotFoundError:
-            logger.warning("YahooFinanceProvider.%s ticker not found: %s", method, ticker)
-            raise
-        except Exception as exc:
-            logger.error("YahooFinanceProvider.%s failed for %s: %s", method, ticker, exc)
-            raise ExternalServiceError(
-                f"Yahoo Finance request failed during {method} for {ticker}"
-            ) from exc
+        max_attempts = len(_RETRY_BACKOFF_SECONDS) + 1
+        last_exc: Exception | None = None
+
+        for attempt in range(1, max_attempts + 1):
+            try:
+                return await asyncio.to_thread(fn, ticker, *args)
+            except TickerNotFoundError:
+                logger.warning("YahooFinanceProvider.%s ticker not found: %s", method, ticker)
+                raise
+            except Exception as exc:
+                last_exc = exc
+                if attempt >= max_attempts:
+                    break
+                delay = _RETRY_BACKOFF_SECONDS[attempt - 1]
+                logger.warning(
+                    "YahooFinanceProvider.%s failed for %s (attempt %d/%d), retrying in %.0fs: %s",
+                    method,
+                    ticker,
+                    attempt,
+                    max_attempts,
+                    delay,
+                    exc,
+                )
+                await asyncio.sleep(delay)
+
+        logger.error(
+            "YahooFinanceProvider.%s failed for %s after %d attempts: %s",
+            method,
+            ticker,
+            max_attempts,
+            last_exc,
+        )
+        raise ExternalServiceError(
+            f"Yahoo Finance request failed during {method} for {ticker}"
+        ) from last_exc
 
     async def get_company_profile(self, ticker: str) -> CompanyProfile:
         info = await self._call("get_company_profile", ticker, _fetch_info_sync)
