@@ -79,7 +79,12 @@ def render_report_pdf(report: ResearchReportResponse) -> bytes:
                 pdf.bullet(point)
 
     pdf.section_title("Financial Summary")
-    pdf.paragraph(report.financial_data_summary or "Not available.")
+    financial_lines = _financial_summary_lines(report)
+    if financial_lines:
+        for line in financial_lines:
+            pdf.bullet(line)
+    else:
+        pdf.body_line("Not available.")
 
     pdf.section_title("Key Risks")
     risks = rec.risks if rec and rec.risks else []
@@ -92,7 +97,12 @@ def render_report_pdf(report: ResearchReportResponse) -> bytes:
         pdf.body_line("Not available.")
 
     pdf.section_title("News Impact")
-    pdf.paragraph(report.news_research_summary or "Not available.")
+    news_lines = _news_summary_lines(report)
+    if news_lines:
+        for line in news_lines:
+            pdf.bullet(line)
+    else:
+        pdf.body_line("Not available.")
 
     pdf.section_title("Investment Thesis")
     pdf.paragraph(report.analysis or "Not available.")
@@ -107,6 +117,76 @@ def render_report_pdf(report: ResearchReportResponse) -> bytes:
 
     raw = pdf.output()
     return bytes(raw)
+
+
+# financial_data_summary / news_research_summary are raw JSON blobs built for
+# LLM prompt context (see research_formatters.py) - never render them
+# directly, or lines like `"ticker": "X",` leak into the PDF. Build
+# human-readable lines from the structured fields instead.
+
+
+def _format_inr_cr(value: float | None) -> str | None:
+    if value is None:
+        return None
+    return f"Rs {value / 1e7:,.2f} Cr"
+
+
+def _format_ratio_percent(value: float) -> str:
+    # ROE/margins arrive as 0-1 fractions from Yahoo Finance.
+    pct = value * 100 if abs(value) <= 1 else value
+    return f"{pct:.1f}%"
+
+
+def _financial_summary_lines(report: ResearchReportResponse) -> list[str]:
+    fd = report.financial_data
+    if fd is None:
+        return []
+    ratios = fd.ratios[0] if fd.ratios else None
+    income = fd.income_statements[0] if fd.income_statements else None
+
+    lines: list[str] = []
+    market_cap = _format_inr_cr(fd.profile.market_cap)
+    if market_cap:
+        lines.append(f"Market cap: {market_cap}")
+    if ratios and ratios.return_on_equity is not None:
+        lines.append(f"Return on equity: {_format_ratio_percent(ratios.return_on_equity)}")
+    if ratios and ratios.net_profit_margin is not None:
+        lines.append(f"Net profit margin: {_format_ratio_percent(ratios.net_profit_margin)}")
+    if ratios and ratios.debt_to_equity is not None:
+        # Already percentage-scale (e.g. 10.5 means debt is 10.5% of equity),
+        # not a raw x-multiple - do not run through _format_ratio_percent.
+        lines.append(f"Debt-to-equity: {ratios.debt_to_equity:.1f}%")
+    if ratios and ratios.current_ratio is not None:
+        lines.append(f"Current ratio: {ratios.current_ratio:.2f}")
+    if ratios and ratios.price_to_earnings is not None:
+        lines.append(f"P/E ratio: {ratios.price_to_earnings:.2f}")
+    if ratios and ratios.price_to_book is not None:
+        lines.append(f"P/B ratio: {ratios.price_to_book:.2f}")
+    revenue = _format_inr_cr(income.revenue) if income else None
+    if revenue:
+        lines.append(f"Latest revenue: {revenue}")
+    net_income = _format_inr_cr(income.net_income) if income else None
+    if net_income:
+        lines.append(f"Latest net income: {net_income}")
+    return lines
+
+
+def _news_summary_lines(report: ResearchReportResponse) -> list[str]:
+    news = report.news_data
+    if news is None:
+        return []
+    lines: list[str] = []
+    if news.sentiment_summary:
+        lines.append(news.sentiment_summary.strip())
+    for group in (news.latest_news, news.earnings_and_filings, news.sector_news):
+        for article in group:
+            if article.title:
+                lines.append(article.title)
+            if len(lines) >= 5:
+                break
+        if len(lines) >= 5:
+            break
+    return lines
 
 
 def _collect_sources(report: ResearchReportResponse) -> list[str]:

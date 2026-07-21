@@ -65,7 +65,10 @@ def test_resolved_llm_model_chain_uses_defaults() -> None:
     # default explicitly rather than omitting it, since omitting it would pick
     # up whatever OPENROUTER_MODEL happens to be set to in the real local .env,
     # defeating the point of testing the "no override" default-chain behavior.
-    cfg = Settings(openrouter_model="openai/gpt-4o-mini")
+    # llm_fallback_models must also be pinned to None: LLM_FALLBACK_MODELS
+    # REPLACES the whole chain when set, and the real .env sets it (to the
+    # free-tier Gemma chain), which would otherwise leak into this test.
+    cfg = Settings(openrouter_model="openai/gpt-4o-mini", llm_fallback_models=None)
     chain = cfg.resolved_llm_model_chain()
     assert chain[0] == "openai/gpt-4o-mini"
     assert chain[-1] == "deepseek/deepseek-chat"
@@ -79,7 +82,8 @@ def test_resolved_llm_model_chain_normalizes_legacy_gemini_entries() -> None:
 
 
 def test_resolved_llm_model_chain_puts_openrouter_model_first() -> None:
-    cfg = Settings(openrouter_model="anthropic/claude-3.7-sonnet")
+    # See llm_fallback_models=None note above - same reason.
+    cfg = Settings(openrouter_model="anthropic/claude-3.7-sonnet", llm_fallback_models=None)
     chain = cfg.resolved_llm_model_chain()
     assert chain[0] == "anthropic/claude-3.7-sonnet"
 

@@ -35,9 +35,78 @@ export interface CompanyProfile {
   description?: string | null
 }
 
+export interface FinancialRatios {
+  date: string
+  period?: string | null
+  current_ratio?: number | null
+  debt_to_equity?: number | null
+  return_on_equity?: number | null
+  return_on_assets?: number | null
+  gross_profit_margin?: number | null
+  net_profit_margin?: number | null
+  price_to_earnings?: number | null
+  price_to_book?: number | null
+}
+
+export interface KeyMetrics {
+  date: string
+  period?: string | null
+  revenue_per_share?: number | null
+  net_income_per_share?: number | null
+  enterprise_value?: number | null
+  ev_to_ebitda?: number | null
+  pe_ratio?: number | null
+  pb_ratio?: number | null
+}
+
+export interface MarketData {
+  current_price?: number | null
+  previous_close?: number | null
+  day_high?: number | null
+  day_low?: number | null
+  fifty_two_week_high?: number | null
+  fifty_two_week_low?: number | null
+  volume?: number | null
+  average_volume?: number | null
+  currency?: string | null
+}
+
+export interface IncomeStatement {
+  date: string
+  period?: string | null
+  revenue?: number | null
+  gross_profit?: number | null
+  operating_income?: number | null
+  net_income?: number | null
+  eps?: number | null
+  ebitda?: number | null
+}
+
 export interface FinancialResearchResponse {
   ticker: string
   profile: CompanyProfile
+  income_statements?: IncomeStatement[]
+  ratios?: FinancialRatios[]
+  key_metrics?: KeyMetrics[]
+  market_data?: MarketData | null
+  data_sources?: string[]
+}
+
+export interface NewsArticle {
+  title: string
+  url: string
+  snippet?: string | null
+  published_date?: string | null
+  source?: string | null
+}
+
+export interface NewsResearchResponse {
+  ticker: string
+  company_name?: string | null
+  latest_news?: NewsArticle[]
+  earnings_and_filings?: NewsArticle[]
+  sector_news?: NewsArticle[]
+  sentiment_summary?: string | null
   data_sources?: string[]
 }
 
@@ -94,6 +163,7 @@ export interface ResearchReportResponse {
   generated_at: string
   financial_data?: FinancialResearchResponse | null
   financial_data_summary?: string | null
+  news_data?: NewsResearchResponse | null
   news_research_summary?: string | null
   analysis?: string | null
   analysis_output?: AnalysisOutput | null
