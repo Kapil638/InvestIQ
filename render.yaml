@@ -1,5 +1,10 @@
 # Render Blueprint – https://render.com/docs/blueprint-spec
 # Deploy: connect GitHub repo → Render reads this file → create web service
+#
+# After the first deploy, your backend URL is https://investiq-api.onrender.com
+# (from the service `name` below). Set that as CORS_ORIGINS' counterpart on the
+# frontend, and use it for GOOGLE_DRIVE_OAUTH_REDIRECT_URL / KITE_REDIRECT_URL /
+# WEBAUTHN_ORIGIN below once you know your actual frontend (Vercel) URL too.
 
 services:
   - type: web
@@ -20,23 +25,134 @@ services:
         value: "false"
       - key: CREW_VERBOSE
         value: "false"
-      - key: YFINANCE_ENABLED
-        value: "true"
-      # ChromaDB: disable on Render free tier (ephemeral disk). Use Supabase for persistence.
-      - key: CHROMA_ENABLED
+      - key: CREW_MEMORY
         value: "false"
-      - key: STORAGE_ENABLED
-        value: "true"
-      # Set in Render dashboard (Secrets):
+      - key: LOG_LEVEL
+        value: INFO
+      - key: CACHE_ENABLED
+        value: "false"
+      - key: CACHE_TTL_SECONDS
+        value: "300"
+      - key: MAX_NEWS_RESULTS
+        value: "10"
+      - key: MAX_DOCUMENT_CHUNKS
+        value: "20"
+      - key: MAX_SEARCH_RESULTS
+        value: "10"
+
+      # LLM – OpenRouter
+      - key: LLM_PROVIDER
+        value: openrouter
+      - key: LLM_TEMPERATURE
+        value: "0.2"
+      - key: LLM_RETRY_BACKOFF_SECONDS
+        value: "3,8"
       - key: OPENROUTER_API_KEY
         sync: false
       - key: OPENROUTER_MODEL
         sync: false
+      - key: LLM_FALLBACK_MODELS
+        sync: false
+
+      # Guardrails
+      - key: GUARDRAIL_COLLECTION_MAX_AGE_HOURS
+        value: "24"
+      - key: GUARDRAIL_STATEMENT_MAX_AGE_MONTHS
+        value: "18"
+      - key: GUARDRAIL_NEWS_MAX_AGE_DAYS
+        value: "30"
+      - key: GUARDRAIL_MAX_ANALYSIS_RETRIES
+        value: "2"
+      - key: GUARDRAIL_BLOCK_ON_WARNINGS
+        value: "false"
+
+      # Financial data
+      - key: YFINANCE_ENABLED
+        value: "true"
+
+      # Tapetide MCP – read-only Indian exchange data (public endpoint, token is secret)
+      - key: TAPETIDE_MCP_ENABLED
+        value: "true"
+      - key: TAPETIDE_MCP_URL
+        value: https://mcp.tapetide.com/mcp
+      - key: TAPETIDE_MCP_READ_ONLY
+        value: "true"
+      - key: TAPETIDE_MCP_TIMEOUT_SECONDS
+        value: "20"
+      - key: TAPETIDE_API_TOKEN
+        sync: false
+
+      # Kite Connect – read-only market data & portfolio (no order placement)
+      - key: KITE_MCP_ENABLED
+        value: "true"
+      - key: KITE_MCP_URL
+        value: https://mcp.kite.trade/mcp
+      - key: KITE_MCP_READ_ONLY
+        value: "true"
+      - key: KITE_EXCLUDED_TOOLS
+        value: place_order,modify_order,cancel_order,place_gtt_order,modify_gtt_order,delete_gtt_order
+      - key: KITE_API_KEY
+        sync: false
+      - key: KITE_API_SECRET
+        sync: false
+      # Must be https://investiq-api.onrender.com/api/v1/kite/callback
+      - key: KITE_REDIRECT_URL
+        sync: false
+      # Must be https://<your-vercel-url>/portfolio
+      - key: KITE_FRONTEND_REDIRECT_URL
+        sync: false
+
+      # Google Drive – OAuth user delegation (report PDF export)
+      - key: GOOGLE_DRIVE_ENABLED
+        value: "true"
+      - key: GOOGLE_DRIVE_OAUTH_CLIENT_ID
+        sync: false
+      - key: GOOGLE_DRIVE_OAUTH_CLIENT_SECRET
+        sync: false
+      # Must be https://investiq-api.onrender.com/api/v1/google-drive/callback
+      - key: GOOGLE_DRIVE_OAUTH_REDIRECT_URL
+        sync: false
+      # Must be https://<your-vercel-url>/reports
+      - key: GOOGLE_DRIVE_OAUTH_FRONTEND_REDIRECT_URL
+        sync: false
+      - key: GOOGLE_DRIVE_ROOT_FOLDER_ID
+        sync: false
+
+      # Owner authentication gate – self-disabling if ALLOWED_OWNER_EMAILS is unset
+      - key: ALLOWED_OWNER_EMAILS
+        sync: false
+      - key: SESSION_SECRET_KEY
+        sync: false
+      - key: SESSION_MAX_AGE_DAYS
+        value: "30"
+      - key: GOOGLE_SIGNIN_CLIENT_ID
+        sync: false
+
+      # WebAuthn / passkey – RP_ID and ORIGIN must match your real frontend domain,
+      # not localhost, once you have one (e.g. RP_ID=your-vercel-url without
+      # protocol, ORIGIN=https://<your-vercel-url>)
+      - key: WEBAUTHN_RP_ID
+        sync: false
+      - key: WEBAUTHN_RP_NAME
+        value: InvestIQ
+      - key: WEBAUTHN_ORIGIN
+        sync: false
+
+      # Search
       - key: TAVILY_API_KEY
         sync: false
+
+      # Database & storage
+      # ChromaDB disabled on Render free tier (ephemeral disk) - Supabase is durable.
+      - key: CHROMA_ENABLED
+        value: "false"
+      - key: STORAGE_ENABLED
+        value: "true"
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_ANON_KEY
         sync: false
+
+      # CORS – must include your deployed Vercel URL
       - key: CORS_ORIGINS
         sync: false
