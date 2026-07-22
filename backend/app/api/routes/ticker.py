@@ -15,7 +15,6 @@ from fastapi import APIRouter, Depends
 from app.api.dependencies import get_tapetide_service
 from app.schemas.ticker import TickerItem, TickerResponse
 from app.services.tapetide_service import TapetideService
-from app.utils.exceptions import TapetideMcpServiceError
 from app.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -69,7 +68,7 @@ async def _fetch_quote(
     async with semaphore:
         try:
             quote = await tapetide.get_quote(symbol)
-        except TapetideMcpServiceError as exc:
+        except Exception as exc:  # noqa: BLE001 — one bad symbol must not sink the whole banner
             logger.debug("Ticker quote unavailable for %s: %s", symbol, exc)
             return None
         if quote.last_price is None:

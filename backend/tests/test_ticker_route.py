@@ -12,7 +12,7 @@ from app.api.routes import ticker as ticker_module
 from app.core.config import Settings
 from app.main import create_app
 from app.schemas.tapetide import TapetideQuoteResponse
-from app.utils.exceptions import TapetideMcpServiceError
+from app.utils.exceptions import TapetideMcpServiceError, TickerNotFoundError
 
 
 @pytest.fixture(autouse=True)
@@ -71,6 +71,28 @@ def test_ticker_route_skips_symbols_with_failed_quotes() -> None:
     assert response.status_code == 200
     symbols = [item["symbol"] for item in response.json()["items"]]
     assert "TCS" not in symbols
+    assert len(symbols) == len(ticker_module.TOP_NIFTY_SYMBOLS) - 1
+
+
+def test_ticker_route_survives_non_tapetide_exceptions() -> None:
+    """Regression test: observed in production - Tapetide's Yahoo fallback
+    raised TickerNotFoundError (a sibling of TapetideMcpServiceError, not a
+    subclass) for one symbol, which wasn't caught and crashed the entire
+    endpoint (404 for all 10 stocks) instead of just skipping that symbol."""
+    mock_service = AsyncMock()
+
+    async def flaky_get_quote(symbol, **kwargs):
+        if symbol == "HDFCBANK":
+            raise TickerNotFoundError("No Yahoo Finance data found for ticker: HDFCBANK.NS")
+        return TapetideQuoteResponse(symbol=symbol, last_price=100.0, change_percent=1.0)
+
+    mock_service.get_quote.side_effect = flaky_get_quote
+    client = _make_client(mock_service)
+
+    response = client.get("/api/v1/ticker/nifty-top10")
+    assert response.status_code == 200
+    symbols = [item["symbol"] for item in response.json()["items"]]
+    assert "HDFCBANK" not in symbols
     assert len(symbols) == len(ticker_module.TOP_NIFTY_SYMBOLS) - 1
 
 
