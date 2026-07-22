@@ -437,4 +437,59 @@
   .avengers-beam {
     animation: avengers-pulse-glow 1.2s ease-in-out infinite;
   }
+
+  /* Login page */
+  @keyframes market-ticker-scroll {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+
+  .market-ticker-track {
+    width: max-content;
+    animation: market-ticker-scroll 32s linear infinite;
+  }
+
+  .login-bg-grid {
+    background-image:
+      linear-gradient(rgba(52, 211, 153, 0.07) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(52, 211, 153, 0.07) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, black 40%, transparent 90%);
+  }
+
+  @keyframes login-blob-drift-1 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(50px, 35px) scale(1.15); }
+  }
+
+  @keyframes login-blob-drift-2 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(-60px, -25px) scale(1.1); }
+  }
+
+  .login-blob-1 {
+    animation: login-blob-drift-1 16s ease-in-out infinite;
+  }
+
+  .login-blob-2 {
+    animation: login-blob-drift-2 20s ease-in-out infinite;
+  }
+
+  @keyframes login-chart-draw {
+    0% { stroke-dashoffset: 1400; opacity: 0; }
+    15% { opacity: 0.6; }
+    85% { opacity: 0.6; }
+    100% { stroke-dashoffset: 0; opacity: 0; }
+  }
+
+  .login-chart-line {
+    stroke-dasharray: 1400;
+    animation: login-chart-draw 9s ease-in-out infinite;
+  }
+
+  .login-chart-line-delayed {
+    stroke-dasharray: 1400;
+    animation: login-chart-draw 9s ease-in-out infinite;
+    animation-delay: 3s;
+  }
 }

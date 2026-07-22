@@ -7,6 +7,7 @@ import { authenticateWithPasskey, isPlatformAuthenticatorAvailable } from '@/lib
 import { invalidateAuthStatusCache } from '@/lib/statusCache'
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { MarketTicker } from '@/components/MarketTicker'
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_SIGNIN_CLIENT_ID as string | undefined
 
@@ -90,9 +91,36 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,_oklch(0.22_0.04_155/_0.35),_transparent_50%)]" />
-      <div className="glass-card relative w-full max-w-sm rounded-2xl p-8">
+    <div className="flex min-h-screen flex-col bg-background">
+      <MarketTicker />
+      <div className="relative flex flex-1 items-center justify-center overflow-hidden px-4">
+        <div className="pointer-events-none absolute inset-0 login-bg-grid" />
+        <div className="pointer-events-none absolute -left-24 top-16 size-72 rounded-full bg-primary/20 blur-[100px] login-blob-1" />
+        <div className="pointer-events-none absolute -right-20 bottom-10 size-80 rounded-full bg-blue-500/15 blur-[110px] login-blob-2" />
+        <svg
+          className="pointer-events-none absolute inset-0 size-full"
+          viewBox="0 0 1200 800"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+        >
+          <polyline
+            className="login-chart-line text-primary"
+            points="0,600 100,560 200,610 300,500 400,530 500,420 600,460 700,380 800,410 900,320 1000,350 1100,270 1200,300"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          />
+          <polyline
+            className="login-chart-line-delayed text-blue-400"
+            points="0,700 150,680 300,690 450,650 600,660 750,600 900,620 1050,560 1200,580"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          />
+        </svg>
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_oklch(0.22_0.04_155/_0.35),_transparent_50%)]" />
+
+        <div className="glass-card relative w-full max-w-sm rounded-2xl p-8">
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
           <span className="flex size-12 items-center justify-center rounded-xl bg-primary/15">
             <BarChart3 className="size-6 text-primary" />
@@ -144,6 +172,7 @@ export function LoginPage() {
             </p>
           )}
         </div>
+      </div>
       </div>
     </div>
   )
