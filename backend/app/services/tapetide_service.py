@@ -257,15 +257,24 @@ class TapetideService:
         price = await self._yahoo.get_current_price(yahoo_symbol)
         market = await self._yahoo.get_market_data(yahoo_symbol)
 
+        previous_close = market.previous_close if market else None
+        change = None
+        change_percent = None
+        if price is not None and previous_close not in (None, 0):
+            change = price - previous_close
+            change_percent = (change / previous_close) * 100
+
         return TapetideQuoteResponse(
             symbol=normalize_indian_ticker(symbol),
             exchange=exchange,
             last_price=price,
             high=market.day_high if market else None,
             low=market.day_low if market else None,
-            close=market.previous_close if market else None,
-            previous_close=market.previous_close if market else None,
+            close=previous_close,
+            previous_close=previous_close,
             volume=market.volume if market else None,
+            change=change,
+            change_percent=change_percent,
             source=YAHOO_SOURCE,
         )
 

@@ -30,6 +30,7 @@ from app.api.routes import (
     research,
     search,
     tapetide,
+    ticker,
 )
 from app.api.dependencies import init_storage_services, init_user_repository, require_owner_session
 from app.core.config import Settings, log_startup_config, reload_settings
@@ -119,6 +120,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(health.router, prefix=app_settings.api_prefix)  # unguarded — Render health probe
     app.include_router(auth.router, prefix=app_settings.api_prefix)  # mixed public/protected internally
+    app.include_router(ticker.router, prefix=app_settings.api_prefix)  # unguarded — pre-login market ticker
     app.include_router(financials.router, prefix=app_settings.api_prefix, dependencies=_guard)
     app.include_router(tapetide.router, prefix=app_settings.api_prefix, dependencies=_guard)
     app.include_router(market.router, prefix=app_settings.api_prefix, dependencies=_guard)

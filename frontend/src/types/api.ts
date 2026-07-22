@@ -206,6 +206,19 @@ export interface ScoreBreakdown {
   data_quality_score: number
 }
 
+export interface TickerItem {
+  symbol: string
+  name: string
+  price?: number | null
+  change_percent?: number | null
+}
+
+export interface TickerResponse {
+  market_open: boolean
+  as_of: string
+  items: TickerItem[]
+}
+
 export interface ReportSummary {
   id: string
   ticker: string

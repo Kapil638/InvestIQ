@@ -14,6 +14,19 @@ from app.services.financial_data_service import FinancialDataService
 from tests.fixtures.financial_data import SAMPLE_YAHOO_INFO
 
 
+@pytest.fixture(autouse=True)
+def _no_owner_auth_gate_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Prevent the real local .env's ALLOWED_OWNER_EMAILS from silently
+    turning on the owner-auth gate for tests that build Settings/create_app
+    without explicitly configuring it - this bit ~15 test files across the
+    suite the moment the gate was actually enabled locally for manual
+    verification. Env vars outrank the .env file in pydantic-settings'
+    precedence, so this neutralizes it; tests that explicitly pass
+    allowed_owner_emails=... to Settings() (e.g. test_owner_auth.py) still
+    win, since explicit constructor kwargs outrank env vars in turn."""
+    monkeypatch.setenv("ALLOWED_OWNER_EMAILS", "")
+
+
 @pytest.fixture
 def mock_provider() -> AsyncMock:
     provider = AsyncMock()

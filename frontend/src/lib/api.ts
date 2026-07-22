@@ -26,6 +26,7 @@ import type {
   StoredReportResponse,
   CompanySearchResponse,
   AdvisorRecommendResponse,
+  TickerResponse,
 } from '@/types/api'
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '/api/v1'
@@ -99,6 +100,10 @@ export function getKiteStatus(): Promise<KiteStatusResponse> {
 
 export function getTapetideStatus(): Promise<TapetideStatusResponse> {
   return request<TapetideStatusResponse>('/tapetide/status')
+}
+
+export function getNiftyTicker(): Promise<TickerResponse> {
+  return request<TickerResponse>('/ticker/nifty-top10')
 }
 
 export function getGoogleDriveStatus(): Promise<GoogleDriveStatusResponse> {

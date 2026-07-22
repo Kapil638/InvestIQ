@@ -147,6 +147,11 @@ async def test_tapetide_yahoo_quote_fallback(settings: Settings) -> None:
 
     assert quote.last_price == 1500.0
     assert quote.source == YAHOO_SOURCE
+    # Regression: the Yahoo fallback previously left change/change_percent
+    # as None even though it has everything needed to compute them.
+    assert quote.previous_close == 1495.0
+    assert quote.change == pytest.approx(5.0)
+    assert quote.change_percent == pytest.approx((5.0 / 1495.0) * 100)
 
 
 @pytest.mark.asyncio
