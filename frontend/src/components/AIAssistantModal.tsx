@@ -153,7 +153,7 @@ export function AIAssistantModal({
     <div
       className={cn(
         'fixed inset-0 z-[100]',
-        isPipelineFullscreen ? 'p-0' : 'flex items-end justify-center p-0 sm:items-center sm:p-4',
+        inReportFlow ? 'p-0' : 'flex items-end justify-center p-0 sm:items-center sm:p-4',
       )}
     >
       <button
@@ -166,7 +166,7 @@ export function AIAssistantModal({
       <div
         className={cn(
           'ai-modal relative flex w-full flex-col overflow-hidden shadow-2xl',
-          isPipelineFullscreen
+          inReportFlow
             ? 'h-[100dvh] max-h-none w-full max-w-none rounded-none border-0'
             : 'h-[92vh] max-h-[900px] rounded-none border-0 sm:h-[88vh] sm:w-[95vw] sm:max-w-[1400px]',
         )}
