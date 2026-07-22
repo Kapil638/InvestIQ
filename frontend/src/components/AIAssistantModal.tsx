@@ -7,7 +7,6 @@ import { useSimulatedAgentProgress, AGENT_STAGE_SEQUENCE, activeStageIndexFromTr
 import { AskAnalyzingState } from '@/components/research/AskAnalyzingState'
 import { ProfessionalReport } from '@/components/research/ProfessionalReport'
 import { ReportChat } from '@/components/research/ReportChat'
-import { SpotifyBackgroundPlayer } from '@/components/research/SpotifyBackgroundPlayer'
 import { ResearchAnswerCard } from '@/components/ResearchAnswerCard'
 import { Button } from '@/components/ui/button'
 import { Alert } from '@/components/ui/alert'
@@ -26,12 +25,6 @@ const AI_PROMPTS = [
   { id: 'full-report', label: 'Generate full institutional report', action: 'report' as const },
   { id: '3year', label: 'Is this stock suitable for a 3-year investment?' },
 ] as const
-
-// Background music played while the report pipeline runs (~1 min), stops
-// once the report is revealed. See SpotifyBackgroundPlayer for why the
-// controller is created on modal open but only .play()'d from inside the
-// "Generate full report" click handler.
-const PIPELINE_MUSIC_URI = 'spotify:artist:4bvGDTEPFnllKiJaEZGuXk'
 
 type AiPrompt = (typeof AI_PROMPTS)[number]
 
@@ -66,7 +59,6 @@ export function AIAssistantModal({
   const [inputText, setInputText] = useState('')
   const [reportRevealed, setReportRevealed] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const spotifyControllerRef = useRef<SpotifyEmbedController | null>(null)
 
   const loading = askLoading || reportLoading
   const isFullReport = selectedPromptId === 'full-report'
@@ -99,12 +91,6 @@ export function AIAssistantModal({
   useEffect(() => {
     if (reportLoading) {
       setReportRevealed(false)
-    }
-  }, [reportLoading])
-
-  useEffect(() => {
-    if (!reportLoading) {
-      spotifyControllerRef.current?.pause()
     }
   }, [reportLoading])
 
@@ -145,10 +131,6 @@ export function AIAssistantModal({
     if (!question || loading) return
 
     if (isFullReport) {
-      // Calling .play() synchronously inside this click handler (not after
-      // an await) is what lets the browser's autoplay policy allow it -
-      // this click is a direct user gesture.
-      spotifyControllerRef.current?.play()
       onGenerateReport()
     } else {
       onAskQuestion(question)
@@ -179,14 +161,6 @@ export function AIAssistantModal({
         aria-label="Close modal"
         className="absolute inset-0 bg-black/70 backdrop-blur-sm"
         onClick={onClose}
-      />
-
-      <SpotifyBackgroundPlayer
-        uri={PIPELINE_MUSIC_URI}
-        visible={reportLoading}
-        onReady={(controller) => {
-          spotifyControllerRef.current = controller
-        }}
       />
 
       <div
