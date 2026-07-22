@@ -43,13 +43,24 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
+# Frontend (Vercel) and backend (Render) are different domains in production,
+# making every API call a cross-site request - a SameSite=Lax cookie gets set
+# fine but is never actually sent back on the subsequent cross-site fetch()
+# calls that check auth status, so sign-in silently never "sticks". SameSite=
+# None requires Secure, which only makes sense once we're actually on HTTPS
+# (production); local dev keeps Lax since Vite's proxy makes it same-origin
+# there anyway, and Secure cookies don't work over local http://.
+def _cookie_samesite(settings: Settings) -> str:
+    return "none" if settings.is_production else "lax"
+
+
 def _set_session_cookie(response: Response, token: str, settings: Settings) -> None:
     response.set_cookie(
         key=SESSION_COOKIE_NAME,
         value=token,
         httponly=True,
         secure=settings.is_production,
-        samesite="lax",
+        samesite=_cookie_samesite(settings),
         max_age=settings.session_max_age_days * 86400,
         path="/",
     )
@@ -61,14 +72,19 @@ def _set_challenge_cookie(response: Response, token: str, settings: Settings) ->
         value=token,
         httponly=True,
         secure=settings.is_production,
-        samesite="lax",
+        samesite=_cookie_samesite(settings),
         max_age=300,
         path="/",
     )
 
 
-def _clear_challenge_cookie(response: Response) -> None:
-    response.delete_cookie(CHALLENGE_COOKIE_NAME, path="/")
+def _clear_challenge_cookie(response: Response, settings: Settings) -> None:
+    response.delete_cookie(
+        CHALLENGE_COOKIE_NAME,
+        path="/",
+        secure=settings.is_production,
+        samesite=_cookie_samesite(settings),
+    )
 
 
 @router.get("/me", response_model=AuthStatusResponse)
@@ -121,8 +137,15 @@ async def google_signin(
 
 
 @router.post("/logout")
-async def logout(response: Response) -> dict[str, bool]:
-    response.delete_cookie(SESSION_COOKIE_NAME, path="/")
+async def logout(
+    response: Response, settings: Settings = Depends(resolve_settings)
+) -> dict[str, bool]:
+    response.delete_cookie(
+        SESSION_COOKIE_NAME,
+        path="/",
+        secure=settings.is_production,
+        samesite=_cookie_samesite(settings),
+    )
     return {"success": True}
 
 
@@ -171,7 +194,7 @@ async def webauthn_register_verify(
         transports=body.credential.get("response", {}).get("transports", []) or [],
         device_label=body.device_label,
     )
-    _clear_challenge_cookie(response)
+    _clear_challenge_cookie(response, settings)
     return {"success": True}
 
 
@@ -224,7 +247,7 @@ async def webauthn_authenticate_verify(
 
     token = owner_auth.create_session_token(owner.id, owner.email)
     _set_session_cookie(response, token, settings)
-    _clear_challenge_cookie(response)
+    _clear_challenge_cookie(response, settings)
 
     return AuthStatusResponse(
         authenticated=True,

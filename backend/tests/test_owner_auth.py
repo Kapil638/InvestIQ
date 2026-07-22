@@ -98,6 +98,50 @@ async def test_google_signin_issues_session_cookie_for_allowed_email(
     assert me.json()["email"] == "kapil.singh20591@gmail.com"
 
 
+@pytest.mark.asyncio
+async def test_session_cookie_uses_samesite_none_in_production(
+    user_repo: InMemoryUserRepository,
+) -> None:
+    """Regression test: frontend (Vercel) and backend (Render) are different
+    domains in production, making every API call cross-site. A SameSite=Lax
+    cookie is accepted by the browser when set, but never sent back on the
+    subsequent cross-site fetch() calls that check auth status - sign-in
+    appeared to silently do nothing. SameSite=None (requires Secure) is
+    needed whenever frontend and backend aren't same-origin; local dev keeps
+    Lax since Vite's proxy makes it same-origin there."""
+    prod_settings = Settings(
+        app_env="production",
+        debug=False,
+        allowed_owner_emails="kapil.singh20591@gmail.com",
+        session_secret_key="test-session-secret",
+        google_signin_client_id="test-client-id",
+    )
+    app = create_app(settings=prod_settings)
+    auth = OwnerAuthService(prod_settings, user_repo=user_repo)
+    app.dependency_overrides[get_owner_auth_service] = lambda: auth
+    app.dependency_overrides[get_user_repository] = lambda: user_repo
+
+    identity = GoogleIdentity(
+        sub="sub-1",
+        email="kapil.singh20591@gmail.com",
+        email_verified=True,
+        name="Kapil",
+        picture=None,
+    )
+    with patch(
+        "app.services.owner_auth_service.verify_google_id_token",
+        AsyncMock(return_value=identity),
+    ):
+        client = TestClient(app)
+        response = client.post(
+            f"{prod_settings.api_prefix}/auth/google/signin", json={"id_token": "fake"}
+        )
+
+    set_cookie = response.headers.get("set-cookie", "")
+    assert "samesite=none" in set_cookie.lower()
+    assert "secure" in set_cookie.lower()
+
+
 def test_protected_route_401s_without_session_when_gate_configured(
     gate_settings: Settings, user_repo: InMemoryUserRepository
 ) -> None:
