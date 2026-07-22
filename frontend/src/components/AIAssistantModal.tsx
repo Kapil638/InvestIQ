@@ -28,10 +28,12 @@ const AI_PROMPTS = [
 ] as const
 
 // Background music played while the report pipeline runs (~1 min), stops
-// once the report is revealed. See SpotifyBackgroundPlayer for why the
-// controller is created on modal open but only .play()'d from inside the
-// "Generate full report" click handler.
-const PIPELINE_MUSIC_URI = 'spotify:artist:4bvGDTEPFnllKiJaEZGuXk'
+// once the report is revealed. No visible player - see SpotifyBackgroundPlayer
+// for why the controller is created on modal open but only .play()'d from
+// inside the "Generate full report" click handler. Starts at 11s to skip
+// the track's 10-second intro.
+const PIPELINE_MUSIC_URI = 'spotify:track:6h6PlGTisMcE6G8GiS31fR'
+const PIPELINE_MUSIC_START_SECONDS = 11
 
 type AiPrompt = (typeof AI_PROMPTS)[number]
 
@@ -183,7 +185,7 @@ export function AIAssistantModal({
 
       <SpotifyBackgroundPlayer
         uri={PIPELINE_MUSIC_URI}
-        visible={reportLoading}
+        startAtSeconds={PIPELINE_MUSIC_START_SECONDS}
         onReady={(controller) => {
           spotifyControllerRef.current = controller
         }}

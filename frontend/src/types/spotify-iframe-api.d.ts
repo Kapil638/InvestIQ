@@ -10,6 +10,7 @@ declare global {
     pause: () => void
     resume: () => void
     togglePlay: () => void
+    seek: (seconds: number) => void
     destroy: () => void
     addListener: (event: 'ready' | 'playback_started' | 'playback_update', cb: () => void) => void
   }
