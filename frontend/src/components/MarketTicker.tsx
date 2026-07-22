@@ -103,9 +103,18 @@ export function MarketTicker() {
           </>
         )}
       </div>
-      <div className="market-ticker-track flex">
-        <TickerRow items={items} />
-        <TickerRow items={items} ariaHidden />
+      {/* Dedicated clipping lane for the scrolling track - its own box, not
+          just the outer bar's, must bound the animation. transform:translateX
+          slides the track's painted content without moving its layout box,
+          so without this wrapper the sliding numbers visually bleed left
+          underneath the badge (only the ancestor bar's overflow applied,
+          which doesn't stop a sibling's transformed content from painting
+          over another sibling). */}
+      <div className="min-w-0 flex-1 overflow-hidden">
+        <div className="market-ticker-track flex">
+          <TickerRow items={items} />
+          <TickerRow items={items} ariaHidden />
+        </div>
       </div>
     </div>
   )
