@@ -10,6 +10,7 @@ from app.guardrails.evidence import build_evidence_corpus
 from app.guardrails.recommendation_parser import parse_recommendation
 from app.schemas.financial import (
     BalanceSheet,
+    CashFlowStatement,
     CompanyProfile,
     FinancialResearchResponse,
     IncomeStatement,
@@ -229,6 +230,48 @@ def test_hallucination_checker_flags_unknown_money() -> None:
         corpus,
     )
     assert any(issue.code == "unsupported_numeric_claims" for issue in issues)
+
+
+def test_evidence_corpus_includes_cash_flow_statement_numbers() -> None:
+    """Regression test: build_evidence_corpus previously never looked at
+    cash_flow_statements at all, so any analysis correctly citing operating
+    cash flow, free cash flow, or capex was always flagged as hallucinated
+    (observed in production for MSTCLTD: real FY26 operating cash flow of
+    -277,942,000 was blocked as an "unsupported numeric claim")."""
+    financial = _financial_data().model_copy(
+        update={
+            "cash_flow_statements": [
+                CashFlowStatement(
+                    date="2026-03-31",
+                    operating_cash_flow=-277_942_000.0,
+                    free_cash_flow=-500_498_000.0,
+                )
+            ]
+        }
+    )
+    corpus = build_evidence_corpus("AAPL", financial, None)
+    assert -277_942_000.0 in corpus.numbers
+    assert -500_498_000.0 in corpus.numbers
+
+
+def test_hallucination_checker_matches_negative_real_values() -> None:
+    """Regression test: the money regex never captures a leading minus sign,
+    so a real negative figure (e.g. a cash flow loss) must be matched by
+    magnitude, not signed ratio - previously `value / known` on a negative
+    `known` produced a negative ratio that always failed the 0.85-1.15 check."""
+    financial = _financial_data().model_copy(
+        update={
+            "cash_flow_statements": [
+                CashFlowStatement(date="2026-03-31", operating_cash_flow=-277_942_000.0)
+            ]
+        }
+    )
+    corpus = build_evidence_corpus("AAPL", financial, None)
+    issues = check_hallucinations(
+        "AAPL reported operating cash flow of 277.94 million for the year, a notable decline.",
+        corpus,
+    )
+    assert not any(issue.code == "unsupported_numeric_claims" for issue in issues)
 
 
 def test_staleness_flags_old_collection() -> None:

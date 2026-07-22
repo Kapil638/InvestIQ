@@ -83,7 +83,12 @@ def _number_supported(value: float, corpus_numbers: set[float]) -> bool:
     for known in corpus_numbers:
         if known == 0:
             continue
-        ratio = value / known if known != 0 else 0
+        # MONEY_PATTERN never captures a leading minus sign, so a claim like
+        # "277.94 million" parses to +277,940,000 even when citing a real
+        # figure that is negative (e.g. negative operating cash flow) -
+        # compare magnitudes, not signed values.
+        magnitude = abs(known)
+        ratio = value / magnitude
         if 0.85 <= ratio <= 1.15:
             return True
         if value > 1_000_000 and 0.5 <= ratio <= 2.0:

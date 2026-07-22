@@ -64,6 +64,18 @@ def build_evidence_corpus(
                 if val is not None:
                     corpus.numbers.add(float(val))
 
+        for flow in financial_data.cash_flow_statements:
+            corpus.statement_dates.append(flow.date)
+            for val in (
+                flow.operating_cash_flow,
+                flow.investing_cash_flow,
+                flow.financing_cash_flow,
+                flow.free_cash_flow,
+                flow.capital_expenditure,
+            ):
+                if val is not None:
+                    corpus.numbers.add(float(val))
+
         for ratio in financial_data.ratios:
             for val in (
                 ratio.return_on_equity,
