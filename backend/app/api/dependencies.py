@@ -225,8 +225,9 @@ def get_advisor_service(
 
 def get_portfolio_analyze_service(
     settings: Settings = Depends(resolve_settings),
+    financial_service: FinancialDataService = Depends(get_financial_data_service),
 ) -> PortfolioAnalyzeService:
-    return PortfolioAnalyzeService(settings=settings)
+    return PortfolioAnalyzeService(settings=settings, financial_data_service=financial_service)
 
 
 def get_rag_service(request: Request) -> RagService:
