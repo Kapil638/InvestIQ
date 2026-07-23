@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Briefcase, Loader2, RefreshCw, Sparkles } from 'lucide-react'
-import { analyzePortfolio, getKiteHoldings } from '@/lib/api'
+import { analyzePortfolio, getKiteHoldings, API_BASE } from '@/lib/api'
 import type { PortfolioAnalyzeResponse, PortfolioHolding } from '@/types/api'
 import type { IndianCompany } from '@/data/indianCompanies'
 import { findCompanyByTicker } from '@/data/indianCompanies'
@@ -176,7 +176,7 @@ export function PortfolioPage() {
           </p>
           <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
             <a
-              href="/api/v1/kite/login"
+              href={`${API_BASE}/kite/login`}
               className="inline-flex h-10 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground hover:opacity-90"
             >
               Connect Zerodha

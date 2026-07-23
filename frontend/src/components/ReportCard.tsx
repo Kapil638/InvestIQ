@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronRight, ExternalLink, FileDown, Loader2, Trash2, Upload } from 'lucide-react'
-import { deleteReport, downloadReportPdf, saveReportToGoogleDrive } from '@/lib/api'
+import { deleteReport, downloadReportPdf, saveReportToGoogleDrive, API_BASE } from '@/lib/api'
 import { canSaveReportToDrive } from '@/lib/reportExportState'
 import type { ReportSummary } from '@/types/api'
 import { Card, CardContent } from '@/components/ui/card'
@@ -207,7 +207,7 @@ export function ReportCard({
               </Button>
             ) : (
               <a
-                href="/api/v1/google-drive/login"
+                href={`${API_BASE}/google-drive/login`}
                 onClick={(e) => e.stopPropagation()}
                 className="inline-flex h-8 items-center gap-2 rounded-lg border border-border/70 px-3 text-xs font-medium text-muted-foreground hover:bg-muted"
               >

@@ -29,7 +29,12 @@ import type {
   TickerResponse,
 } from '@/types/api'
 
-const API_BASE = import.meta.env.VITE_API_URL ?? '/api/v1'
+// Exported for the handful of full-page redirect links (Kite/Google Drive
+// OAuth "Connect" buttons) that need an absolute URL - a plain relative
+// href works fine locally (Vite's dev proxy makes it same-origin) but
+// silently 404s in production, where the frontend (Vercel) and backend
+// (Render) are different domains and there's no proxy.
+export const API_BASE = import.meta.env.VITE_API_URL ?? '/api/v1'
 
 interface ApiErrorBody {
   detail?: string | Array<{ msg?: string } | string>
