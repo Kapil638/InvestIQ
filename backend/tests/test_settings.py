@@ -33,11 +33,6 @@ def test_production_debug_validation_fails() -> None:
         Settings(app_env="production", debug=True)
 
 
-def test_chroma_directory_required_when_enabled() -> None:
-    with pytest.raises(ValidationError, match="CHROMA_PERSIST_DIRECTORY"):
-        Settings(chroma_enabled=True, chroma_persist_directory="   ")
-
-
 def test_kite_oauth_configured_when_keys_present() -> None:
     cfg = Settings(kite_api_key="key", kite_api_secret="secret")
     assert cfg.kite_oauth_configured is True

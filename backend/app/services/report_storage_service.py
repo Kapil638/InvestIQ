@@ -1,6 +1,6 @@
 """Persist research reports and index them for RAG."""
 
-from app.database.chroma_store import ChromaVectorStore
+from app.database.pgvector_store import PgVectorStore
 from app.database.repositories.memory_repository import InMemoryReportRepository
 from app.models.research_report import StoredResearchReport
 from app.schemas.research import ResearchReportResponse
@@ -12,9 +12,9 @@ logger = get_logger(__name__)
 
 
 class ReportStorageService:
-    """Saves reports to Supabase (or memory) and indexes them in ChromaDB."""
+    """Saves reports to Supabase (or memory) and indexes them for RAG (pgvector)."""
 
-    def __init__(self, repository, vector_store: ChromaVectorStore | None) -> None:
+    def __init__(self, repository, vector_store: PgVectorStore | None) -> None:
         self._repository = repository
         self._vector_store = vector_store
 
@@ -44,7 +44,7 @@ class ReportStorageService:
                     generated_at=stored.generated_at.isoformat(),
                 )
             except Exception as exc:
-                logger.warning("ChromaDB indexing failed for %s: %s", stored.id, exc)
+                logger.warning("pgvector indexing failed for %s: %s", stored.id, exc)
 
         return stored
 
@@ -74,7 +74,7 @@ class ReportStorageService:
             try:
                 await self._vector_store.delete_report(report_id)
             except Exception as exc:
-                logger.warning("ChromaDB delete failed for %s: %s", report_id, exc)
+                logger.warning("pgvector delete failed for %s: %s", report_id, exc)
 
         return True
 

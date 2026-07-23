@@ -23,7 +23,7 @@ def storage_service() -> ReportStorageService:
 
 @pytest.fixture
 def client(storage_service: ReportStorageService) -> TestClient:
-    settings = Settings(app_env="test", debug=True, chroma_enabled=False)
+    settings = Settings(app_env="test", debug=True, rag_enabled=False)
     app = create_app(settings=settings)
     app.dependency_overrides[get_report_storage_service] = lambda: storage_service
     app.dependency_overrides[get_rag_service] = lambda: RagService(vector_store=None)

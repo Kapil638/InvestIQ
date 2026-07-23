@@ -11,7 +11,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Self
 
-from pydantic import AliasChoices, Field, field_validator, model_validator
+from pydantic import AliasChoices, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.utils.logging import get_logger
@@ -158,9 +158,11 @@ class Settings(BaseSettings):
             "SUPABASE_KEY",
         ),
     )
-    chroma_enabled: bool = True
-    chroma_persist_directory: str = "./chroma_data"
-    chroma_collection_name: str = "research_reports"
+    # RAG ("institutional memory") - stored in Supabase/pgvector, not local
+    # disk, so it works the same in production as it does locally. Defaults
+    # to following storage_enabled since it's just another table in the same
+    # database, not a separate piece of infrastructure to opt into.
+    rag_enabled: bool = True
     storage_enabled: bool = True
 
     # Logging & cache
@@ -177,20 +179,10 @@ class Settings(BaseSettings):
     max_document_chunks: int = 20
     max_search_results: int = 10
 
-    @field_validator("chroma_persist_directory")
-    @classmethod
-    def strip_chroma_directory(cls, value: str) -> str:
-        return value.strip()
-
     @model_validator(mode="after")
     def validate_environment_rules(self) -> Self:
         if self.is_production and self.debug:
             raise ValueError("DEBUG must be false when APP_ENV=production")
-
-        if self.chroma_enabled and not self.chroma_persist_directory:
-            raise ValueError(
-                "CHROMA_PERSIST_DIRECTORY must not be empty when CHROMA_ENABLED=true"
-            )
 
         return self
 
@@ -336,7 +328,7 @@ def log_startup_config(app_settings: Settings | None = None) -> None:
     logger.info("Starting %s", cfg.app_name)
     logger.info("Environment: %s", cfg.app_env)
     logger.info("Debug mode: %s", cfg.debug)
-    logger.info("Chroma enabled: %s", cfg.chroma_enabled)
+    logger.info("RAG (pgvector) enabled: %s", cfg.rag_enabled)
     logger.info("Storage enabled: %s", cfg.storage_enabled)
     logger.info("Tavily configured: %s", bool(cfg.tavily_api_key))
     logger.info("Kite enabled: %s", cfg.kite_mcp_enabled)

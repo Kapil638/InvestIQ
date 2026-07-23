@@ -106,7 +106,7 @@ def get_research_crew_service(
 
 def _build_report_storage(settings: Settings) -> ReportStorageService:
     repository = create_report_repository(settings)
-    vector_store = create_vector_store(settings) if settings.chroma_enabled else None
+    vector_store = create_vector_store(settings)
     return ReportStorageService(repository=repository, vector_store=vector_store)
 
 
@@ -233,14 +233,14 @@ def get_rag_service(request: Request) -> RagService:
     rag = getattr(request.app.state, "rag_service", None)
     if rag is None:
         settings = resolve_settings(request)
-        vector_store = create_vector_store(settings) if settings.chroma_enabled else None
+        vector_store = create_vector_store(settings)
         rag = RagService(vector_store=vector_store)
     return rag
 
 
 def init_storage_services(settings: Settings) -> tuple[ReportStorageService, RagService]:
     """Initialize storage services for app lifespan."""
-    vector_store = create_vector_store(settings) if settings.chroma_enabled else None
+    vector_store = create_vector_store(settings)
     storage = ReportStorageService(
         repository=create_report_repository(settings),
         vector_store=vector_store,

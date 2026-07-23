@@ -69,7 +69,7 @@ async def _fetch_quote(
         try:
             quote = await tapetide.get_quote(symbol)
         except Exception as exc:  # noqa: BLE001 — one bad symbol must not sink the whole banner
-            logger.debug("Ticker quote unavailable for %s: %s", symbol, exc)
+            logger.warning("Ticker quote unavailable for %s: %s", symbol, exc)
             return None
         if quote.last_price is None:
             return None

@@ -69,7 +69,7 @@ def client(storage_service: ReportStorageService) -> TestClient:
     settings = Settings(
         app_env="test",
         debug=True,
-        chroma_enabled=False,
+        rag_enabled=False,
         openrouter_api_key="test-openrouter-key",
     )
     app = create_app(settings=settings)

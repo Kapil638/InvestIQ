@@ -59,7 +59,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        """Startup/shutdown hooks – DB pools, ChromaDB, etc."""
+        """Startup/shutdown hooks – DB pools, etc."""
         setup_logging(app_settings.log_level)
         log_startup_config(app_settings)
         get_company_master_service().ensure_loaded()

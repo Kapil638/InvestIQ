@@ -79,7 +79,7 @@ async def generate_research_report(
     report = await crew_service.run(
         ticker,
         storage=storage if settings.storage_enabled else None,
-        rag=rag if settings.chroma_enabled else None,
+        rag=rag if settings.rag_enabled else None,
         holdings_service=holdings_service,
     )
 

@@ -143,9 +143,10 @@ services:
         sync: false
 
       # Database & storage
-      # ChromaDB disabled on Render free tier (ephemeral disk) - Supabase is durable.
-      - key: CHROMA_ENABLED
-        value: "false"
+      # RAG now lives in Supabase/pgvector (see database/migrations/006 & 007),
+      # not local disk, so it's safe to enable here unlike the old ChromaDB setup.
+      - key: RAG_ENABLED
+        value: "true"
       - key: STORAGE_ENABLED
         value: "true"
       - key: SUPABASE_URL

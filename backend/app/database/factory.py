@@ -1,7 +1,7 @@
 """Factory for database clients and repositories."""
 
 from app.core.config import Settings
-from app.database.chroma_store import ChromaVectorStore
+from app.database.pgvector_store import PgVectorStore
 from app.database.repositories.memory_repository import InMemoryReportRepository
 from app.database.repositories.supabase_repository import SupabaseReportRepository
 from app.database.repositories.user_memory_repository import InMemoryUserRepository
@@ -42,12 +42,12 @@ def create_user_repository(settings: Settings):
     return InMemoryUserRepository()
 
 
-def create_vector_store(settings: Settings) -> ChromaVectorStore | None:
-    if not settings.chroma_enabled:
+def create_vector_store(settings: Settings) -> PgVectorStore | None:
+    if not settings.rag_enabled or not settings.uses_supabase:
         return None
 
-    logger.info("ChromaDB vector store enabled at %s", settings.chroma_persist_directory)
-    return ChromaVectorStore(
-        persist_directory=settings.chroma_persist_directory,
-        collection_name=settings.chroma_collection_name,
+    logger.info("pgvector RAG store enabled (Supabase)")
+    return PgVectorStore(
+        url=settings.supabase_url,
+        key=settings.supabase_anon_key,
     )

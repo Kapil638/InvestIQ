@@ -1,6 +1,6 @@
 """RAG service – retrieve similar past research reports from ChromaDB."""
 
-from app.database.chroma_store import ChromaVectorStore
+from app.database.pgvector_store import PgVectorStore
 from app.schemas.storage import SimilarReportsResponse
 from app.utils.exceptions import ConfigurationError
 
@@ -8,7 +8,7 @@ from app.utils.exceptions import ConfigurationError
 class RagService:
     """Semantic search over indexed research reports."""
 
-    def __init__(self, vector_store: ChromaVectorStore | None) -> None:
+    def __init__(self, vector_store: PgVectorStore | None) -> None:
         self._vector_store = vector_store
 
     @property
@@ -24,7 +24,7 @@ class RagService:
     ) -> SimilarReportsResponse:
         if not self._vector_store:
             raise ConfigurationError(
-                "ChromaDB is not enabled. Set CHROMA_ENABLED=true to use RAG search."
+                "RAG is not enabled. Set RAG_ENABLED=true and configure Supabase to use RAG search."
             )
 
         results = await self._vector_store.search_similar(
