@@ -198,3 +198,22 @@ async def test_index_report_swallows_errors(monkeypatch: pytest.MonkeyPatch) -> 
         rating=None,
         generated_at="now",
     )
+
+
+def test_embed_output_is_json_serializable(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Regression test: chromadb's DefaultEmbeddingFunction returns numpy
+    arrays of numpy.float32 scalars. list(vec) alone converts the array to a
+    Python list but leaves numpy.float32 elements inside it, which the
+    Supabase client's JSON serialization rejects with "Object of type
+    float32 is not JSON serializable" - caught only by exercising the real
+    embedding function, since every other test mocks _embed entirely (via
+    the autouse _fake_embeddings fixture, undone here)."""
+    import json
+
+    monkeypatch.undo()  # reverse the autouse _fake_embeddings patch for this test only
+
+    vectors = pgvector_store._embed(["a real sentence to embed"])
+    assert len(vectors) == 1
+    assert len(vectors[0]) == 384
+    assert all(isinstance(x, float) for x in vectors[0])
+    json.dumps(vectors[0])  # must not raise

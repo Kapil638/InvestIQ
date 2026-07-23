@@ -42,7 +42,10 @@ def _get_embedding_function() -> Any:
 
 def _embed(texts: list[str]) -> list[list[float]]:
     ef = _get_embedding_function()
-    return [list(vec) for vec in ef(texts)]
+    # list(vec) alone leaves numpy.float32 scalars inside the list, which the
+    # Supabase client's JSON serialization rejects - cast each element to a
+    # native Python float explicitly.
+    return [[float(x) for x in vec] for vec in ef(texts)]
 
 
 class PgVectorStore:
