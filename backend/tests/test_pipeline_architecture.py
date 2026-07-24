@@ -46,6 +46,30 @@ def test_research_context_is_immutable_and_shared_fields() -> None:
         ctx.ticker = "TCS"  # type: ignore[misc]
 
 
+def test_research_context_compact_prompt_block_uses_trimmed_summaries() -> None:
+    from app.schemas.financial import IncomeStatement
+
+    fin = FinancialResearchResponse(
+        ticker="INFY",
+        profile=CompanyProfile(symbol="INFY", company_name="Infosys", price=1500.0),
+        income_statements=[
+            IncomeStatement(date="2026-03-31", revenue=1.0),
+            IncomeStatement(date="2025-03-31", revenue=2.0),
+            IncomeStatement(date="2024-03-31", revenue=3.0),
+            IncomeStatement(date="2023-03-31", revenue=4.0),
+        ],
+    )
+    news = NewsResearchResponse(ticker="INFY", sentiment_summary="Positive outlook")
+    ctx = build_research_context("INFY", fin, news)
+
+    full_block = ctx.to_agent_prompt_block()
+    compact_block = ctx.to_agent_prompt_block(compact=True)
+
+    assert "2023-03-31" in full_block
+    assert "2023-03-31" not in compact_block
+    assert "2026-03-31" in compact_block
+
+
 @pytest.mark.asyncio
 async def test_financial_and_news_collect_run_in_parallel(settings: Settings) -> None:
     service = ResearchCrewService(settings=settings)
@@ -60,7 +84,7 @@ async def test_financial_and_news_collect_run_in_parallel(settings: Settings) ->
             profile=CompanyProfile(symbol="INFY", company_name="Infosys"),
         )
 
-    async def slow_news(_symbol):
+    async def slow_news(_symbol, company_name=None):
         order.append("news_start")
         await asyncio.sleep(0.05)
         order.append("news_end")
