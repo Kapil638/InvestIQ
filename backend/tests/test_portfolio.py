@@ -70,6 +70,72 @@ async def test_holdings_auth_required_when_not_connected() -> None:
 
 
 @pytest.mark.asyncio
+async def test_holdings_merges_kite_and_groww() -> None:
+    from app.schemas.groww import GrowwHoldingItem, GrowwHoldingsResponse
+
+    mock_kite = MagicMock()
+    mock_kite.enabled = True
+    mock_kite.get_status = AsyncMock(
+        return_value=KiteStatusResponse(
+            enabled=True, read_only=True, authenticated=True, connected=True, message="connected"
+        )
+    )
+    mock_kite.get_holdings = AsyncMock(
+        return_value=KiteHoldingsResponse(holdings=[_holding_item()], source="Kite Connect")
+    )
+
+    mock_groww = MagicMock()
+    mock_groww.enabled = True
+    mock_groww.get_holdings = AsyncMock(
+        return_value=GrowwHoldingsResponse(
+            holdings=[
+                GrowwHoldingItem(
+                    trading_symbol="COALINDIA",
+                    exchange="NSE",
+                    quantity=100.0,
+                    average_price=400.0,
+                    last_price=450.0,
+                    pnl=5000.0,
+                )
+            ],
+            source="Groww",
+        )
+    )
+
+    service = PortfolioHoldingsService(mock_kite, groww_service=mock_groww)
+    result = await service.get_holdings()
+
+    assert result.auth_required is False
+    assert len(result.holdings) == 2
+    sources = {h.price_source for h in result.holdings}
+    assert sources == {"kite", "groww"}
+
+
+@pytest.mark.asyncio
+async def test_holdings_groww_failure_does_not_blank_kite() -> None:
+    mock_kite = MagicMock()
+    mock_kite.enabled = True
+    mock_kite.get_status = AsyncMock(
+        return_value=KiteStatusResponse(
+            enabled=True, read_only=True, authenticated=True, connected=True, message="connected"
+        )
+    )
+    mock_kite.get_holdings = AsyncMock(
+        return_value=KiteHoldingsResponse(holdings=[_holding_item()], source="Kite Connect")
+    )
+
+    mock_groww = MagicMock()
+    mock_groww.enabled = True
+    mock_groww.get_holdings = AsyncMock(side_effect=RuntimeError("Groww unreachable"))
+
+    service = PortfolioHoldingsService(mock_kite, groww_service=mock_groww)
+    result = await service.get_holdings()
+
+    assert len(result.holdings) == 1
+    assert result.holdings[0].price_source == "kite"
+
+
+@pytest.mark.asyncio
 async def test_holdings_returns_normalized_rows_when_connected() -> None:
     mock_kite = MagicMock()
     mock_kite.enabled = True

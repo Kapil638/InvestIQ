@@ -22,6 +22,7 @@ from app.api.routes import (
     auth,
     financials,
     google_drive_auth,
+    groww,
     health,
     kite,
     market,
@@ -37,6 +38,7 @@ from app.core.config import Settings, log_startup_config, reload_settings
 from app.providers.factory import (
     build_company_search_service,
     build_financial_data_service,
+    build_groww_service,
     build_kite_service,
     build_tapetide_service,
 )
@@ -68,8 +70,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.financial_data_service = build_financial_data_service(app_settings)
         app.state.company_search_service = build_company_search_service(app_settings)
         app.state.tapetide_service = build_tapetide_service(app_settings)
+        app.state.groww_service = build_groww_service(app_settings)
         app.state.portfolio_holdings_service = PortfolioHoldingsService(
             kite_service=build_kite_service(app_settings),
+            groww_service=app.state.groww_service,
             symbol_resolver=get_symbol_resolver_service(),
         )
         app.state.user_repository = init_user_repository(app_settings)
@@ -125,6 +129,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(tapetide.router, prefix=app_settings.api_prefix, dependencies=_guard)
     app.include_router(market.router, prefix=app_settings.api_prefix, dependencies=_guard)
     app.include_router(kite.router, prefix=app_settings.api_prefix, dependencies=_guard)
+    app.include_router(groww.router, prefix=app_settings.api_prefix, dependencies=_guard)
     app.include_router(portfolio.router, prefix=app_settings.api_prefix, dependencies=_guard)
     app.include_router(research.router, prefix=app_settings.api_prefix, dependencies=_guard)
     app.include_router(reports.router, prefix=app_settings.api_prefix, dependencies=_guard)

@@ -9,12 +9,14 @@ from app.database.repositories.base import UserRepository
 from app.providers.factory import (
     build_financial_data_service,
     build_google_drive_auth_service,
+    build_groww_service,
     build_kite_auth_service,
     build_kite_service,
     build_company_search_service,
     build_tapetide_service,
 )
 from app.services.google_drive_auth_service import GoogleDriveAuthService
+from app.services.groww_service import GrowwService
 from app.services.kite_auth_service import KiteAuthService
 from app.services.financial_data_service import FinancialDataService
 from app.services.kite_service import KiteService
@@ -58,6 +60,16 @@ def get_kite_service(
     settings: Settings = Depends(resolve_settings),
 ) -> KiteService:
     return build_kite_service(settings)
+
+
+def get_groww_service(
+    request: Request,
+    settings: Settings = Depends(resolve_settings),
+) -> GrowwService:
+    svc = getattr(request.app.state, "groww_service", None)
+    if svc is None:
+        svc = build_groww_service(settings)
+    return svc
 
 
 def get_tapetide_service(
@@ -199,6 +211,7 @@ def get_portfolio_holdings_service(
     if svc is None:
         svc = PortfolioHoldingsService(
             kite_service=build_kite_service(settings),
+            groww_service=build_groww_service(settings),
             symbol_resolver=get_symbol_resolver_service(),
         )
     return svc

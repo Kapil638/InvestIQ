@@ -7,6 +7,7 @@ import type {
 import type {
   AuthStatusResponse,
   FinancialSummaryResponse,
+  GrowwStatusResponse,
   HistoricalCandle,
   HistoryInterval,
   KiteQuoteResponse,
@@ -101,6 +102,10 @@ export function getFinancialSummary(ticker: string): Promise<FinancialSummaryRes
 
 export function getKiteStatus(): Promise<KiteStatusResponse> {
   return request<KiteStatusResponse>('/kite/status')
+}
+
+export function getGrowwStatus(): Promise<GrowwStatusResponse> {
+  return request<GrowwStatusResponse>('/groww/status')
 }
 
 export function getTapetideStatus(): Promise<TapetideStatusResponse> {

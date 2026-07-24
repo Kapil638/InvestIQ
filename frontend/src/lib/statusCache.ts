@@ -1,7 +1,8 @@
-import { getAuthStatus, getGoogleDriveStatus, getKiteStatus, getTapetideStatus } from '@/lib/api'
+import { getAuthStatus, getGoogleDriveStatus, getGrowwStatus, getKiteStatus, getTapetideStatus } from '@/lib/api'
 import type {
   AuthStatusResponse,
   GoogleDriveStatusResponse,
+  GrowwStatusResponse,
   KiteStatusResponse,
   TapetideStatusResponse,
 } from '@/types/api'
@@ -17,10 +18,12 @@ type CacheEntry<T> = {
 }
 
 let kiteEntry: CacheEntry<KiteStatusResponse> | null = null
+let growwEntry: CacheEntry<GrowwStatusResponse> | null = null
 let tapetideEntry: CacheEntry<TapetideStatusResponse> | null = null
 let driveEntry: CacheEntry<GoogleDriveStatusResponse> | null = null
 let authEntry: CacheEntry<AuthStatusResponse> | null = null
 let kiteInFlight: Promise<KiteStatusResponse> | null = null
+let growwInFlight: Promise<GrowwStatusResponse> | null = null
 let tapetideInFlight: Promise<TapetideStatusResponse> | null = null
 let driveInFlight: Promise<GoogleDriveStatusResponse> | null = null
 let authInFlight: Promise<AuthStatusResponse> | null = null
@@ -33,6 +36,14 @@ const KITE_DISABLED: KiteStatusResponse = {
   message: 'Kite Connect is not enabled.',
   excluded_tools: [],
   available_read_tools: [],
+}
+
+const GROWW_DISABLED: GrowwStatusResponse = {
+  enabled: false,
+  read_only: true,
+  credentials_configured: false,
+  connected: false,
+  message: 'Groww is not enabled.',
 }
 
 const TAPETIDE_DISABLED: TapetideStatusResponse = {
@@ -64,6 +75,7 @@ function isFresh<T>(entry: CacheEntry<T> | null, ttlMs: number = STATUS_TTL_MS):
 
 export function invalidateStatusCache(): void {
   kiteEntry = null
+  growwEntry = null
   tapetideEntry = null
   driveEntry = null
   authEntry = null
@@ -91,6 +103,26 @@ export async function fetchKiteStatusCached(force = false): Promise<KiteStatusRe
     })
 
   return kiteInFlight
+}
+
+export async function fetchGrowwStatusCached(force = false): Promise<GrowwStatusResponse> {
+  if (!force && isFresh(growwEntry)) return growwEntry.data
+  if (!force && growwInFlight) return growwInFlight
+
+  growwInFlight = getGrowwStatus()
+    .then((data) => {
+      growwEntry = { data, ts: Date.now() }
+      return data
+    })
+    .catch(() => {
+      growwEntry = { data: GROWW_DISABLED, ts: Date.now() }
+      return GROWW_DISABLED
+    })
+    .finally(() => {
+      growwInFlight = null
+    })
+
+  return growwInFlight
 }
 
 export async function fetchTapetideStatusCached(force = false): Promise<TapetideStatusResponse> {

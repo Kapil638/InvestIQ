@@ -53,6 +53,14 @@ class TapetideMcpServiceError(InvestIQError):
     """Raised when Tapetide MCP returns an error or is unreachable."""
 
 
+class GrowwNotEnabledError(InvestIQError):
+    """Raised when the Groww Trade API integration is disabled or not credentialed."""
+
+
+class GrowwServiceError(InvestIQError):
+    """Raised when the Groww Trade API returns an error or is unreachable."""
+
+
 class GoogleDriveNotConnectedError(InvestIQError):
     """Raised when Google Drive MCP integration is disabled or unavailable."""
 

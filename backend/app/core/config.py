@@ -110,6 +110,13 @@ class Settings(BaseSettings):
     tapetide_mcp_read_only: bool = True
     tapetide_mcp_timeout_seconds: int = 20
 
+    # Groww Trade API – read-only broker holdings (no order placement wired in).
+    # Unlike Kite, no OAuth/browser flow: the key+secret mint an access token
+    # server-side on demand (see GrowwClient).
+    groww_enabled: bool = False
+    groww_api_key: str | None = None
+    groww_api_secret: str | None = None
+
     # Google Drive API – report PDF export
     google_drive_enabled: bool = False
     google_drive_root_folder_id: str | None = None
@@ -213,6 +220,13 @@ class Settings(BaseSettings):
     def tapetide_token_configured(self) -> bool:
         """True when Tapetide API token is set (value never logged)."""
         return _is_tapetide_token_set(self.tapetide_api_token)
+
+    @property
+    def groww_credentials_configured(self) -> bool:
+        """True when both Groww API key and secret are set (values never logged)."""
+        return _is_kite_credential_set(self.groww_api_key) and _is_kite_credential_set(
+            self.groww_api_secret
+        )
 
     @property
     def google_drive_oauth_configured(self) -> bool:
@@ -339,6 +353,8 @@ def log_startup_config(app_settings: Settings | None = None) -> None:
     logger.info("Tapetide MCP enabled: %s", cfg.tapetide_mcp_enabled)
     logger.info("Tapetide MCP read-only: %s", cfg.tapetide_mcp_read_only)
     logger.info("Tapetide token configured: %s", cfg.tapetide_token_configured)
+    logger.info("Groww enabled: %s", cfg.groww_enabled)
+    logger.info("Groww credentials configured: %s", cfg.groww_credentials_configured)
     logger.info("Google Drive enabled: %s", cfg.google_drive_enabled)
     logger.info("Google Drive OAuth configured: %s", cfg.google_drive_oauth_configured)
     logger.info("Owner auth gate enabled: %s", cfg.owner_auth_configured)

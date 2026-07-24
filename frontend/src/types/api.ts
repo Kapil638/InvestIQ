@@ -288,6 +288,14 @@ export interface KiteStatusResponse {
   available_read_tools: string[]
 }
 
+export interface GrowwStatusResponse {
+  enabled: boolean
+  read_only: boolean
+  credentials_configured: boolean
+  connected: boolean
+  message: string
+}
+
 export interface GoogleDriveStatusResponse {
   enabled: boolean
   oauth_configured: boolean

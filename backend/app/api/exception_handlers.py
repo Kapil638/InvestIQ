@@ -12,6 +12,8 @@ from app.utils.exceptions import (
     GoogleDriveNotConnectedError,
     GoogleDriveServiceError,
     GoogleSignInError,
+    GrowwNotEnabledError,
+    GrowwServiceError,
     InvestIQError,
     KiteAuthError,
     KiteBlockedToolError,
@@ -92,6 +94,24 @@ def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(KiteServiceError)
     async def kite_service_error_handler(
         _request: Request, exc: KiteServiceError
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=502,
+            content=_error_payload(str(exc), type(exc).__name__, 502),
+        )
+
+    @app.exception_handler(GrowwNotEnabledError)
+    async def groww_not_enabled_handler(
+        _request: Request, exc: GrowwNotEnabledError
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=503,
+            content=_error_payload(str(exc), type(exc).__name__, 503),
+        )
+
+    @app.exception_handler(GrowwServiceError)
+    async def groww_service_error_handler(
+        _request: Request, exc: GrowwServiceError
     ) -> JSONResponse:
         return JSONResponse(
             status_code=502,

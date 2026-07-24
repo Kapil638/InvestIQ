@@ -1,10 +1,12 @@
 """Factory for financial data services and providers."""
 
 from app.core.config import Settings
+from app.providers.groww_client import GrowwClient
 from app.providers.kite_mcp_provider import KiteMcpProvider
 from app.providers.tapetide_mcp_provider import TapetideMcpProvider
 from app.providers.yahoo_finance_provider import YahooFinanceProvider
 from app.services.financial_data_service import FinancialDataService
+from app.services.groww_service import GrowwService
 from app.services.kite_auth_service import KiteAuthService
 from app.services.kite_service import KiteService
 from app.services.kite_token_store import get_kite_token_store
@@ -47,6 +49,15 @@ def build_tapetide_service(settings: Settings) -> TapetideService:
     return TapetideService(
         settings=settings,
         provider=TapetideMcpProvider(settings),
+        yahoo_provider=yahoo,
+    )
+
+
+def build_groww_service(settings: Settings) -> GrowwService:
+    yahoo = YahooFinanceProvider() if settings.yfinance_enabled else None
+    return GrowwService(
+        settings=settings,
+        client=GrowwClient(settings),
         yahoo_provider=yahoo,
     )
 

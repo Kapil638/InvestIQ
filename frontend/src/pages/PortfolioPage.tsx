@@ -6,10 +6,12 @@ import type { PortfolioAnalyzeResponse, PortfolioHolding } from '@/types/api'
 import type { IndianCompany } from '@/data/indianCompanies'
 import { findCompanyByTicker } from '@/data/indianCompanies'
 import { useKiteStatus } from '@/hooks/useKiteStatus'
-import { resolveKiteBadge } from '@/lib/dataPlane'
+import { useGrowwStatus } from '@/hooks/useGrowwStatus'
+import { resolveGrowwBadge, resolveKiteBadge } from '@/lib/dataPlane'
 import { PortfolioAnalysis } from '@/components/portfolio/PortfolioAnalysis'
 import { HoldingsTable } from '@/components/portfolio/HoldingsTable'
 import { PortfolioKiteDiagnostics } from '@/components/portfolio/PortfolioKiteDiagnostics'
+import { PortfolioGrowwDiagnostics } from '@/components/portfolio/PortfolioGrowwDiagnostics'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert } from '@/components/ui/alert'
@@ -41,6 +43,8 @@ export function PortfolioPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { status, loading: statusLoading, refetch } = useKiteStatus()
   const badge = resolveKiteBadge(status)
+  const { status: growwStatus, loading: growwStatusLoading, refetch: growwRefetch } = useGrowwStatus()
+  const growwBadge = resolveGrowwBadge(growwStatus)
 
   const [holdings, setHoldings] = useState<PortfolioHolding[]>([])
   const [holdingsMessage, setHoldingsMessage] = useState<string | null>(null)
@@ -116,6 +120,11 @@ export function PortfolioPage() {
 
   const kiteDisabled = badge === 'soon'
   const kiteAuth = badge === 'auth' || authRequired
+  const hasHoldings = holdings.length > 0
+  // Only block the whole page behind "Connect Zerodha" when there's nothing
+  // else to show - if Groww already has holdings, show those and nudge for
+  // Kite inline instead of hiding a working view behind a blocking screen.
+  const showConnectZerodhaScreen = kiteAuth && !kiteDisabled && !hasHoldings
 
   return (
     <div className="space-y-8">
@@ -125,18 +134,29 @@ export function PortfolioPage() {
             <Briefcase className="size-5 text-primary" />
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Portfolio</p>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Zerodha holdings</h1>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Your holdings</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Read-only Zerodha portfolio via Kite Connect — research your holdings with InvestIQ AI.
+            Read-only broker portfolio via Kite Connect and Groww — research your holdings with InvestIQ AI.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => void loadHoldings()} disabled={loading}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            growwRefetch()
+            void loadHoldings()
+          }}
+          disabled={loading}
+        >
           <RefreshCw className={cn('size-4', loading && 'animate-spin')} />
           Refresh
         </Button>
       </div>
 
-      <PortfolioKiteDiagnostics status={status} loading={statusLoading} />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <PortfolioKiteDiagnostics status={status} loading={statusLoading} />
+        <PortfolioGrowwDiagnostics status={growwStatus} loading={growwStatusLoading} />
+      </div>
 
       <div className="glass-card rounded-2xl p-5">
         <div className="flex flex-wrap items-center gap-3">
@@ -159,16 +179,29 @@ export function PortfolioPage() {
               · {status.broker ?? 'Zerodha'} · {status.user_id}
             </span>
           )}
+          <span className="mx-1 text-muted-foreground">·</span>
+          <span className="text-sm font-medium">Groww connection</span>
+          <span
+            className={cn(
+              'rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
+              growwBadge === 'live'
+                ? 'bg-emerald-500/15 text-emerald-300'
+                : 'bg-muted text-muted-foreground',
+            )}
+          >
+            {growwBadge === 'live' ? 'Live' : 'Disabled'}
+          </span>
+          {growwStatus && <span className="text-xs text-muted-foreground">{growwStatus.message}</span>}
         </div>
       </div>
 
-      {kiteDisabled && (
+      {kiteDisabled && !hasHoldings && (
         <Alert title="Kite Connect is not enabled">
           Enable Kite MCP on the backend to view your Zerodha portfolio.
         </Alert>
       )}
 
-      {kiteAuth && !kiteDisabled && (
+      {showConnectZerodhaScreen && (
         <div className="glass-card rounded-2xl p-8 text-center">
           <p className="text-lg font-medium">Connect Zerodha</p>
           <p className="mt-2 text-sm text-muted-foreground">
@@ -188,6 +221,20 @@ export function PortfolioPage() {
         </div>
       )}
 
+      {kiteAuth && !kiteDisabled && hasHoldings && (
+        <div className="glass-card flex flex-wrap items-center justify-between gap-3 rounded-2xl p-4 text-sm">
+          <span className="text-muted-foreground">
+            {holdingsMessage || status?.message || 'Connect Zerodha to also see those holdings here.'}
+          </span>
+          <a
+            href={`${API_BASE}/kite/login`}
+            className="inline-flex h-8 items-center justify-center rounded-lg border border-border px-3 text-xs font-medium hover:bg-muted"
+          >
+            Connect Zerodha
+          </a>
+        </div>
+      )}
+
       {error && (
         <Alert variant="destructive" title="Could not load holdings">
           {error}
@@ -202,7 +249,7 @@ export function PortfolioPage() {
         </div>
       )}
 
-      {!loading && !kiteDisabled && !kiteAuth && holdings.length > 0 && (
+      {!loading && hasHoldings && (
         <>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
             <SummaryCard label="Current value" value={formatINR(totals.current)} />
@@ -247,9 +294,9 @@ export function PortfolioPage() {
         </>
       )}
 
-      {!loading && !kiteDisabled && !kiteAuth && holdings.length === 0 && !error && (
+      {!loading && !kiteDisabled && !kiteAuth && !hasHoldings && !error && (
         <div className="glass-card rounded-2xl p-8 text-center text-muted-foreground">
-          No holdings found in your Zerodha account.
+          No holdings found in your connected broker accounts.
         </div>
       )}
     </div>

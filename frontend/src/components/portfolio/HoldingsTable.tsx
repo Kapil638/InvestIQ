@@ -1,7 +1,28 @@
 import { memo, useCallback } from 'react'
 import type { PortfolioHolding } from '@/types/api'
-import { formatINR, formatPercent } from '@/lib/utils'
+import { cn, formatINR, formatPercent } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+
+const BROKER_LABELS: Record<string, string> = {
+  kite: 'Zerodha',
+  groww: 'Groww',
+}
+
+function BrokerBadge({ priceSource }: { priceSource: string }) {
+  const label = BROKER_LABELS[priceSource] ?? priceSource
+  return (
+    <span
+      className={cn(
+        'ml-2 rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide',
+        priceSource === 'groww'
+          ? 'bg-emerald-500/10 text-emerald-500'
+          : 'bg-primary/10 text-primary',
+      )}
+    >
+      {label}
+    </span>
+  )
+}
 
 interface HoldingsTableProps {
   holdings: PortfolioHolding[]
@@ -28,7 +49,11 @@ function HoldingsTableInner({ holdings, onAIResearch }: HoldingsTableProps) {
           </thead>
           <tbody>
             {holdings.map((h) => (
-              <HoldingRow key={`${h.exchange}-${h.symbol}`} holding={h} onAIResearch={onAIResearch} />
+              <HoldingRow
+                key={`${h.price_source}-${h.exchange}-${h.symbol}`}
+                holding={h}
+                onAIResearch={onAIResearch}
+              />
             ))}
           </tbody>
         </table>
@@ -49,7 +74,10 @@ const HoldingRow = memo(function HoldingRow({
   return (
     <tr className="border-b border-border/40">
       <td className="px-4 py-3">
-        <p className="font-medium">{h.company_name || h.symbol}</p>
+        <p className="flex items-center font-medium">
+          {h.company_name || h.symbol}
+          <BrokerBadge priceSource={h.price_source} />
+        </p>
         <p className="text-xs text-muted-foreground">
           {h.symbol}
           {h.exchange ? ` · ${h.exchange}` : ''}

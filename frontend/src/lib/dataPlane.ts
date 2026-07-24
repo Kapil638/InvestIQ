@@ -1,4 +1,4 @@
-import type { KiteStatusResponse, TapetideStatusResponse } from '@/types/api'
+import type { GrowwStatusResponse, KiteStatusResponse, TapetideStatusResponse } from '@/types/api'
 import { DATA_SOURCES, type DataSourceItem } from '@/data/dataSources'
 
 export type KiteBadgeStatus = 'live' | 'auth' | 'soon'
@@ -7,6 +7,13 @@ export function resolveKiteBadge(status: KiteStatusResponse | null): KiteBadgeSt
   if (!status?.enabled) return 'soon'
   if (status.authenticated && status.connected) return 'live'
   return 'auth'
+}
+
+// Simpler than Kite's badge: no browser OAuth step, so there's no separate
+// "auth required" state - Groww is either connected (env credentials valid)
+// or not enabled/reachable yet.
+export function resolveGrowwBadge(status: GrowwStatusResponse | null): 'live' | 'soon' {
+  return status?.enabled && status.connected ? 'live' : 'soon'
 }
 
 export function resolveDataSources(
