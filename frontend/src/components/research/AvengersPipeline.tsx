@@ -364,7 +364,7 @@ export function AvengersPipeline({
             className={cn(
               'relative min-h-0 flex-1',
               fullscreen
-                ? 'grid grid-rows-6 gap-1 overflow-hidden'
+                ? 'grid grid-rows-[repeat(6,minmax(min-content,1fr))] gap-1 overflow-y-auto overscroll-contain'
                 : 'avengers-agent-list space-y-1.5 overflow-y-auto overscroll-contain pr-1',
             )}
           >
