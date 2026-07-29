@@ -296,6 +296,21 @@ export interface GrowwStatusResponse {
   message: string
 }
 
+export interface HealthResponse {
+  status: string
+  app_name: string
+  version: string
+  environment: string
+  llm_provider?: string | null
+  llm_model?: string | null
+}
+
+export interface DatabaseStatusResponse {
+  connected: boolean
+  message: string
+  latency_ms?: number | null
+}
+
 export interface GoogleDriveStatusResponse {
   enabled: boolean
   oauth_configured: boolean

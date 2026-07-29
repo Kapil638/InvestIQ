@@ -6,8 +6,10 @@ import type {
 } from '@simplewebauthn/browser'
 import type {
   AuthStatusResponse,
+  DatabaseStatusResponse,
   FinancialSummaryResponse,
   GrowwStatusResponse,
+  HealthResponse,
   HistoricalCandle,
   HistoryInterval,
   KiteQuoteResponse,
@@ -136,6 +138,14 @@ export function getKiteStatus(): Promise<KiteStatusResponse> {
 
 export function getGrowwStatus(): Promise<GrowwStatusResponse> {
   return request<GrowwStatusResponse>('/groww/status')
+}
+
+export function getHealth(): Promise<HealthResponse> {
+  return request<HealthResponse>('/health')
+}
+
+export function getDatabaseStatus(): Promise<DatabaseStatusResponse> {
+  return request<DatabaseStatusResponse>('/status/database')
 }
 
 export function getTapetideStatus(): Promise<TapetideStatusResponse> {

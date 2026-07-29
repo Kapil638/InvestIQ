@@ -5,6 +5,7 @@ import { LoginPage } from '@/pages/LoginPage'
 import { PortfolioPage } from '@/pages/PortfolioPage'
 import { ReportsPage } from '@/pages/ReportsPage'
 import { ReportDetailPage } from '@/pages/ReportDetailPage'
+import { SystemStatusPage } from '@/pages/SystemStatusPage'
 
 export default function App() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
           <Route path="/portfolio" element={<PortfolioPage />} />
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/reports/:reportId" element={<ReportDetailPage />} />
+          <Route path="/status" element={<SystemStatusPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

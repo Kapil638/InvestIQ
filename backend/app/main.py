@@ -30,6 +30,7 @@ from app.api.routes import (
     reports,
     research,
     search,
+    system_status,
     tapetide,
     ticker,
 )
@@ -127,6 +128,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(ticker.router, prefix=app_settings.api_prefix)  # unguarded — pre-login market ticker
     app.include_router(financials.router, prefix=app_settings.api_prefix, dependencies=_guard)
     app.include_router(tapetide.router, prefix=app_settings.api_prefix, dependencies=_guard)
+    app.include_router(system_status.router, prefix=app_settings.api_prefix, dependencies=_guard)
     app.include_router(market.router, prefix=app_settings.api_prefix, dependencies=_guard)
     app.include_router(kite.router, prefix=app_settings.api_prefix, dependencies=_guard)
     app.include_router(groww.router, prefix=app_settings.api_prefix, dependencies=_guard)

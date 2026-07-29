@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
-import { BarChart3, Briefcase, History, LogOut, Search, User } from 'lucide-react'
+import { Activity, BarChart3, Briefcase, History, LogOut, Search, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStatus } from '@/hooks/useAuthStatus'
 import { logout } from '@/lib/api'
@@ -73,6 +73,20 @@ export function Layout({ children }: { children: ReactNode }) {
             >
               <History className="size-4" />
               History
+            </NavLink>
+            <NavLink
+              to="/status"
+              className={({ isActive }) =>
+                cn(
+                  'flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors',
+                  isActive
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
+                )
+              }
+            >
+              <Activity className="size-4" />
+              Status
             </NavLink>
           </nav>
           {gateConfigured && (
