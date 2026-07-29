@@ -64,36 +64,66 @@ function formatApiError(body: ApiErrorBody, httpStatus: number): string {
   return `Request failed (${status})${typeSuffix}`
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  let response: Response
-  try {
-    response = await fetch(`${API_BASE}${path}`, {
-      headers: { 'Content-Type': 'application/json', ...init?.headers },
-      credentials: 'include',
-      ...init,
-    })
-  } catch {
-    throw new Error(
-      'Cannot reach the InvestIQ backend. Ensure the backend is running on port 8002 and refresh the page.',
-    )
-  }
+const NETWORK_RETRY_ATTEMPTS = 2
+const NETWORK_RETRY_DELAY_MS = 1500
 
-  if (!response.ok) {
-    let message = `Request failed (${response.status})`
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+interface RequestOptions extends RequestInit {
+  // Set false for expensive, long-running, non-idempotent-feeling calls (e.g.
+  // the multi-minute full report generation) where silently re-triggering an
+  // expensive LLM pipeline on a dropped connection would be the wrong default
+  // - better to surface the error and let the user explicitly retry.
+  retryOnNetworkError?: boolean
+}
+
+async function request<T>(path: string, init?: RequestOptions): Promise<T> {
+  const { retryOnNetworkError = true, ...fetchInit } = init ?? {}
+  const attempts = retryOnNetworkError ? NETWORK_RETRY_ATTEMPTS : 1
+
+  let response: Response | undefined
+  for (let attempt = 1; attempt <= attempts; attempt++) {
     try {
-      const body = (await response.json()) as ApiErrorBody
-      message = formatApiError(body, response.status)
+      response = await fetch(`${API_BASE}${path}`, {
+        headers: { 'Content-Type': 'application/json', ...fetchInit.headers },
+        credentials: 'include',
+        ...fetchInit,
+      })
+      break
+    } catch {
+      if (attempt === attempts) {
+        throw new Error(
+          'Cannot reach the InvestIQ backend. Ensure the backend is running on port 8002 and refresh the page.',
+        )
+      }
+      // A dropped connection here is often a brief server restart (e.g. a
+      // free-tier instance recovering from an out-of-memory crash) rather
+      // than a real outage - a short retry rides it out instead of failing
+      // in front of the user for something that resolves itself in seconds.
+      await sleep(NETWORK_RETRY_DELAY_MS)
+    }
+  }
+  // The loop above always either assigns response or throws before falling through.
+  const resolvedResponse = response!
+
+  if (!resolvedResponse.ok) {
+    let message = `Request failed (${resolvedResponse.status})`
+    try {
+      const body = (await resolvedResponse.json()) as ApiErrorBody
+      message = formatApiError(body, resolvedResponse.status)
     } catch {
       // use default message
     }
     throw new Error(message)
   }
 
-  if (response.status === 204) {
+  if (resolvedResponse.status === 204) {
     return undefined as T
   }
 
-  return response.json() as Promise<T>
+  return resolvedResponse.json() as Promise<T>
 }
 
 export function getFinancialSummary(ticker: string): Promise<FinancialSummaryResponse> {
@@ -213,6 +243,10 @@ export function askResearchQuestion(
 export function generateReport(ticker: string): Promise<ResearchReportResponse> {
   return request<ResearchReportResponse>(`/research/${ticker.toUpperCase()}/report`, {
     method: 'POST',
+    // A multi-minute multi-agent LLM pipeline - never silently re-trigger
+    // this on a dropped connection, since a retry would burn LLM cost on an
+    // already-possibly-partially-run generation with no guarantee of success.
+    retryOnNetworkError: false,
   })
 }
 
@@ -286,32 +320,39 @@ function parseContentDispositionFilename(header: string | null): string | null {
 }
 
 export async function downloadReportPdf(reportId: string): Promise<string> {
-  let response: Response
-  try {
-    response = await fetch(`${API_BASE}/reports/${reportId}/pdf`, {
-      method: 'POST',
-      credentials: 'include',
-    })
-  } catch {
-    throw new Error(
-      'Cannot reach the InvestIQ backend. Ensure the backend is running on port 8002 and refresh the page.',
-    )
-  }
-
-  if (!response.ok) {
-    let message = `PDF generation failed (${response.status})`
+  let response: Response | undefined
+  for (let attempt = 1; attempt <= NETWORK_RETRY_ATTEMPTS; attempt++) {
     try {
-      const body = (await response.json()) as ApiErrorBody
-      message = formatApiError(body, response.status)
+      response = await fetch(`${API_BASE}/reports/${reportId}/pdf`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+      break
+    } catch {
+      if (attempt === NETWORK_RETRY_ATTEMPTS) {
+        throw new Error(
+          'Cannot reach the InvestIQ backend. Ensure the backend is running on port 8002 and refresh the page.',
+        )
+      }
+      await sleep(NETWORK_RETRY_DELAY_MS)
+    }
+  }
+  const resolvedResponse = response!
+
+  if (!resolvedResponse.ok) {
+    let message = `PDF generation failed (${resolvedResponse.status})`
+    try {
+      const body = (await resolvedResponse.json()) as ApiErrorBody
+      message = formatApiError(body, resolvedResponse.status)
     } catch {
       // use default message
     }
     throw new Error(message)
   }
 
-  const blob = await response.blob()
+  const blob = await resolvedResponse.blob()
   const filename =
-    parseContentDispositionFilename(response.headers.get('Content-Disposition')) ??
+    parseContentDispositionFilename(resolvedResponse.headers.get('Content-Disposition')) ??
     `InvestIQ_report_${reportId}.pdf`
   const url = URL.createObjectURL(blob)
   const anchor = document.createElement('a')
