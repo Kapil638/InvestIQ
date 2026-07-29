@@ -12,14 +12,14 @@ pydantic-settings>=2.6.0
 httpx>=0.28.0
 
 # Financial data
-yfinance>=0.2.40
+yfinance>=1.5.0
 
 # AI agents
-crewai[google-genai]>=0.108.0
+crewai[google-genai]>=1.15.0
 
 # Database & vector store
 supabase>=2.10.0
-chromadb>=0.5.0
+chromadb>=1.1.0
 
 # PDF export
 fpdf2>=2.8.0
@@ -31,3 +31,6 @@ google-auth>=2.36.0
 # Owner authentication gate – signed session cookies + WebAuthn/passkey verification
 itsdangerous>=2.2.0
 webauthn>=3.0.0
+
+# Groww Trade API – read-only broker holdings (no order placement wired in)
+growwapi>=1.5.0
