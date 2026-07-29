@@ -98,7 +98,8 @@ class AdvisorRetrieval:
                     response = await self._search.search(name, limit=3)
                     for item in response.results:
                         add_item(item)
-                except Exception:
+                except Exception as exc:
+                    logger.debug("Advisor company search failed for %r: %s", name, exc)
                     continue
                 if len(results) >= MAX_RAW_CANDIDATES:
                     break

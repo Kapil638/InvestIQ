@@ -45,7 +45,6 @@ from app.providers.factory import (
 from app.services.portfolio_holdings_service import PortfolioHoldingsService
 from app.services.symbol_resolver_service import get_symbol_resolver_service
 from app.services.company_master_service import get_company_master_service
-from app.services.symbol_resolver_service import get_symbol_resolver_service
 from app.utils.logging import setup_logging
 from app.utils.timing import SLOW_THRESHOLD_SECONDS
 
@@ -71,8 +70,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.company_search_service = build_company_search_service(app_settings)
         app.state.tapetide_service = build_tapetide_service(app_settings)
         app.state.groww_service = build_groww_service(app_settings)
+        app.state.kite_service = build_kite_service(app_settings)
         app.state.portfolio_holdings_service = PortfolioHoldingsService(
-            kite_service=build_kite_service(app_settings),
+            kite_service=app.state.kite_service,
             groww_service=app.state.groww_service,
             symbol_resolver=get_symbol_resolver_service(),
         )

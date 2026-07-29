@@ -22,6 +22,8 @@ from app.utils.exceptions import (
     OwnerNotAllowedError,
     ReportNotFoundError,
     SessionRequiredError,
+    TapetideMcpNotEnabledError,
+    TapetideMcpServiceError,
     TickerNotFoundError,
     WebAuthnError,
 )
@@ -112,6 +114,24 @@ def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(GrowwServiceError)
     async def groww_service_error_handler(
         _request: Request, exc: GrowwServiceError
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=502,
+            content=_error_payload(str(exc), type(exc).__name__, 502),
+        )
+
+    @app.exception_handler(TapetideMcpNotEnabledError)
+    async def tapetide_not_enabled_handler(
+        _request: Request, exc: TapetideMcpNotEnabledError
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=503,
+            content=_error_payload(str(exc), type(exc).__name__, 503),
+        )
+
+    @app.exception_handler(TapetideMcpServiceError)
+    async def tapetide_service_error_handler(
+        _request: Request, exc: TapetideMcpServiceError
     ) -> JSONResponse:
         return JSONResponse(
             status_code=502,

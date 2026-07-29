@@ -97,12 +97,6 @@ class Settings(BaseSettings):
     kite_redirect_url: str = "http://127.0.0.1:8002/api/v1/kite/callback"
     kite_frontend_redirect_url: str = "http://localhost:5173/portfolio"
 
-    # NSE/BSE MCP – deprecated (use Tapetide MCP instead)
-    nse_bse_mcp_enabled: bool = False
-    nse_bse_mcp_url: str = "http://localhost:3000/mcp"
-    nse_bse_mcp_read_only: bool = True
-    nse_bse_mcp_timeout_seconds: int = 20
-
     # Tapetide MCP – read-only Indian exchange data (npx -y tapetide-mcp or remote)
     tapetide_mcp_enabled: bool = False
     tapetide_mcp_url: str = "https://mcp.tapetide.com/mcp"
@@ -348,8 +342,6 @@ def log_startup_config(app_settings: Settings | None = None) -> None:
     logger.info("Kite enabled: %s", cfg.kite_mcp_enabled)
     logger.info("Kite OAuth configured: %s", cfg.kite_oauth_configured)
     logger.info("Kite read-only: %s", cfg.kite_mcp_read_only)
-    logger.info("NSE/BSE MCP enabled: %s", cfg.nse_bse_mcp_enabled)
-    logger.info("NSE/BSE MCP read-only: %s", cfg.nse_bse_mcp_read_only)
     logger.info("Tapetide MCP enabled: %s", cfg.tapetide_mcp_enabled)
     logger.info("Tapetide MCP read-only: %s", cfg.tapetide_mcp_read_only)
     logger.info("Tapetide token configured: %s", cfg.tapetide_token_configured)

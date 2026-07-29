@@ -17,16 +17,43 @@ type CacheEntry<T> = {
   ts: number
 }
 
-let kiteEntry: CacheEntry<KiteStatusResponse> | null = null
-let growwEntry: CacheEntry<GrowwStatusResponse> | null = null
-let tapetideEntry: CacheEntry<TapetideStatusResponse> | null = null
-let driveEntry: CacheEntry<GoogleDriveStatusResponse> | null = null
-let authEntry: CacheEntry<AuthStatusResponse> | null = null
-let kiteInFlight: Promise<KiteStatusResponse> | null = null
-let growwInFlight: Promise<GrowwStatusResponse> | null = null
-let tapetideInFlight: Promise<TapetideStatusResponse> | null = null
-let driveInFlight: Promise<GoogleDriveStatusResponse> | null = null
-let authInFlight: Promise<AuthStatusResponse> | null = null
+function isFresh<T>(entry: CacheEntry<T> | null, ttlMs: number): entry is CacheEntry<T> {
+  return entry !== null && Date.now() - entry.ts < ttlMs
+}
+
+// Every status source (Kite, Groww, Tapetide, Drive, Auth) needs the same
+// shape: a TTL cache + in-flight-request dedup + a disabled fallback on
+// failure. This factory holds that logic once instead of once per source.
+function createStatusFetcher<T>(fetchFn: () => Promise<T>, disabledValue: T, ttlMs: number = STATUS_TTL_MS) {
+  let entry: CacheEntry<T> | null = null
+  let inFlight: Promise<T> | null = null
+
+  async function fetchCached(force = false): Promise<T> {
+    if (!force && isFresh(entry, ttlMs)) return entry.data
+    if (!force && inFlight) return inFlight
+
+    inFlight = fetchFn()
+      .then((data) => {
+        entry = { data, ts: Date.now() }
+        return data
+      })
+      .catch(() => {
+        entry = { data: disabledValue, ts: Date.now() }
+        return disabledValue
+      })
+      .finally(() => {
+        inFlight = null
+      })
+
+    return inFlight
+  }
+
+  function invalidate(): void {
+    entry = null
+  }
+
+  return { fetchCached, invalidate }
+}
 
 const KITE_DISABLED: KiteStatusResponse = {
   enabled: false,
@@ -69,118 +96,26 @@ const AUTH_DISABLED: AuthStatusResponse = {
   has_passkey: false,
 }
 
-function isFresh<T>(entry: CacheEntry<T> | null, ttlMs: number = STATUS_TTL_MS): entry is CacheEntry<T> {
-  return entry !== null && Date.now() - entry.ts < ttlMs
-}
+const kite = createStatusFetcher(getKiteStatus, KITE_DISABLED)
+const groww = createStatusFetcher(getGrowwStatus, GROWW_DISABLED)
+const tapetide = createStatusFetcher(getTapetideStatus, TAPETIDE_DISABLED)
+const drive = createStatusFetcher(getGoogleDriveStatus, DRIVE_DISABLED)
+const auth = createStatusFetcher(getAuthStatus, AUTH_DISABLED, AUTH_STATUS_TTL_MS)
+
+export const fetchKiteStatusCached = kite.fetchCached
+export const fetchGrowwStatusCached = groww.fetchCached
+export const fetchTapetideStatusCached = tapetide.fetchCached
+export const fetchGoogleDriveStatusCached = drive.fetchCached
+export const fetchAuthStatusCached = auth.fetchCached
 
 export function invalidateStatusCache(): void {
-  kiteEntry = null
-  growwEntry = null
-  tapetideEntry = null
-  driveEntry = null
-  authEntry = null
+  kite.invalidate()
+  groww.invalidate()
+  tapetide.invalidate()
+  drive.invalidate()
+  auth.invalidate()
 }
 
 export function invalidateAuthStatusCache(): void {
-  authEntry = null
-}
-
-export async function fetchKiteStatusCached(force = false): Promise<KiteStatusResponse> {
-  if (!force && isFresh(kiteEntry)) return kiteEntry.data
-  if (!force && kiteInFlight) return kiteInFlight
-
-  kiteInFlight = getKiteStatus()
-    .then((data) => {
-      kiteEntry = { data, ts: Date.now() }
-      return data
-    })
-    .catch(() => {
-      kiteEntry = { data: KITE_DISABLED, ts: Date.now() }
-      return KITE_DISABLED
-    })
-    .finally(() => {
-      kiteInFlight = null
-    })
-
-  return kiteInFlight
-}
-
-export async function fetchGrowwStatusCached(force = false): Promise<GrowwStatusResponse> {
-  if (!force && isFresh(growwEntry)) return growwEntry.data
-  if (!force && growwInFlight) return growwInFlight
-
-  growwInFlight = getGrowwStatus()
-    .then((data) => {
-      growwEntry = { data, ts: Date.now() }
-      return data
-    })
-    .catch(() => {
-      growwEntry = { data: GROWW_DISABLED, ts: Date.now() }
-      return GROWW_DISABLED
-    })
-    .finally(() => {
-      growwInFlight = null
-    })
-
-  return growwInFlight
-}
-
-export async function fetchTapetideStatusCached(force = false): Promise<TapetideStatusResponse> {
-  if (!force && isFresh(tapetideEntry)) return tapetideEntry.data
-  if (!force && tapetideInFlight) return tapetideInFlight
-
-  tapetideInFlight = getTapetideStatus()
-    .then((data) => {
-      tapetideEntry = { data, ts: Date.now() }
-      return data
-    })
-    .catch(() => {
-      tapetideEntry = { data: TAPETIDE_DISABLED, ts: Date.now() }
-      return TAPETIDE_DISABLED
-    })
-    .finally(() => {
-      tapetideInFlight = null
-    })
-
-  return tapetideInFlight
-}
-
-export async function fetchGoogleDriveStatusCached(force = false): Promise<GoogleDriveStatusResponse> {
-  if (!force && isFresh(driveEntry)) return driveEntry.data
-  if (!force && driveInFlight) return driveInFlight
-
-  driveInFlight = getGoogleDriveStatus()
-    .then((data) => {
-      driveEntry = { data, ts: Date.now() }
-      return data
-    })
-    .catch(() => {
-      driveEntry = { data: DRIVE_DISABLED, ts: Date.now() }
-      return DRIVE_DISABLED
-    })
-    .finally(() => {
-      driveInFlight = null
-    })
-
-  return driveInFlight
-}
-
-export async function fetchAuthStatusCached(force = false): Promise<AuthStatusResponse> {
-  if (!force && isFresh(authEntry, AUTH_STATUS_TTL_MS)) return authEntry.data
-  if (!force && authInFlight) return authInFlight
-
-  authInFlight = getAuthStatus()
-    .then((data) => {
-      authEntry = { data, ts: Date.now() }
-      return data
-    })
-    .catch(() => {
-      authEntry = { data: AUTH_DISABLED, ts: Date.now() }
-      return AUTH_DISABLED
-    })
-    .finally(() => {
-      authInFlight = null
-    })
-
-  return authInFlight
+  auth.invalidate()
 }

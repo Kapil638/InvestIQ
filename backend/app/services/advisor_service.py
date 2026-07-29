@@ -380,7 +380,8 @@ class AdvisorService:
                         f"Prior report rating={s.rating or 'N/A'} "
                         f"confidence={s.confidence_score or 'N/A'}"
                     )
-            except Exception:
+            except Exception as exc:
+                logger.debug("Prior report lookup failed for %s: %s", ticker, exc)
                 continue
         return hints
 

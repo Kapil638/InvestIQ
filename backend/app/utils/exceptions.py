@@ -37,14 +37,6 @@ class KiteServiceError(InvestIQError):
     """Raised when Kite MCP returns an error or is unreachable."""
 
 
-class NseBseMcpNotEnabledError(InvestIQError):
-    """Raised when NSE/BSE MCP integration is disabled."""
-
-
-class NseBseMcpServiceError(InvestIQError):
-    """Raised when NSE/BSE MCP returns an error or is unreachable."""
-
-
 class TapetideMcpNotEnabledError(InvestIQError):
     """Raised when Tapetide MCP integration is disabled."""
 

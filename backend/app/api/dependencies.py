@@ -34,6 +34,9 @@ from app.services.owner_auth_service import OwnerAuthService, OwnerSessionData, 
 from app.services.advisor_service import AdvisorService
 from app.services.research_ask_service import ResearchAskService
 from app.services.research_crew_service import ResearchCrewService
+from app.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 def resolve_settings(request: Request) -> Settings:
@@ -57,9 +60,13 @@ def get_google_drive_auth_service(
 
 
 def get_kite_service(
+    request: Request,
     settings: Settings = Depends(resolve_settings),
 ) -> KiteService:
-    return build_kite_service(settings)
+    svc = getattr(request.app.state, "kite_service", None)
+    if svc is None:
+        svc = build_kite_service(settings)
+    return svc
 
 
 def get_groww_service(
@@ -130,7 +137,8 @@ def get_report_chat_service(
     rag: RagService | None = None
     try:
         rag = get_rag_service(request)
-    except Exception:
+    except Exception as exc:
+        logger.warning("RAG service unavailable for report chat, continuing without it: %s", exc)
         rag = None
     return ReportChatService(settings=settings, storage=storage, rag_service=rag)
 

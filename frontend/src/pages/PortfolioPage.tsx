@@ -10,8 +10,7 @@ import { useGrowwStatus } from '@/hooks/useGrowwStatus'
 import { resolveGrowwBadge, resolveKiteBadge } from '@/lib/dataPlane'
 import { PortfolioAnalysis } from '@/components/portfolio/PortfolioAnalysis'
 import { HoldingsTable } from '@/components/portfolio/HoldingsTable'
-import { PortfolioKiteDiagnostics } from '@/components/portfolio/PortfolioKiteDiagnostics'
-import { PortfolioGrowwDiagnostics } from '@/components/portfolio/PortfolioGrowwDiagnostics'
+import { ConnectionDiagnostics, yesNo } from '@/components/portfolio/ConnectionDiagnostics'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert } from '@/components/ui/alert'
@@ -154,8 +153,32 @@ export function PortfolioPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <PortfolioKiteDiagnostics status={status} loading={statusLoading} />
-        <PortfolioGrowwDiagnostics status={growwStatus} loading={growwStatusLoading} />
+        <ConnectionDiagnostics
+          title="Connection diagnostics"
+          loadingLabel="Loading Kite status…"
+          loading={statusLoading}
+          hasData={status !== null}
+          message={status?.message}
+          rows={[
+            { label: 'Kite enabled', value: yesNo(status?.enabled) },
+            { label: 'Authenticated', value: yesNo(status?.authenticated) },
+            { label: 'Connected', value: yesNo(status?.connected) },
+            { label: 'Broker', value: status?.broker ?? '—' },
+            { label: 'User ID', value: status?.user_id ?? '—' },
+          ]}
+        />
+        <ConnectionDiagnostics
+          title="Groww connection diagnostics"
+          loadingLabel="Loading Groww status…"
+          loading={growwStatusLoading}
+          hasData={growwStatus !== null}
+          message={growwStatus?.message}
+          rows={[
+            { label: 'Groww enabled', value: yesNo(growwStatus?.enabled) },
+            { label: 'Credentials configured', value: yesNo(growwStatus?.credentials_configured) },
+            { label: 'Connected', value: yesNo(growwStatus?.connected) },
+          ]}
+        />
       </div>
 
       <div className="glass-card rounded-2xl p-5">
