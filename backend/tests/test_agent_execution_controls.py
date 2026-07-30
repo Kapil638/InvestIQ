@@ -36,7 +36,7 @@ def test_all_agents_apply_execution_controls(builder, settings: Settings) -> Non
         builder(llm, settings)
         kwargs = agent_cls.call_args.kwargs
         assert kwargs["max_iter"] == 2
-        assert kwargs["max_execution_time"] == 75
+        assert kwargs["max_execution_time"] == 150
         assert kwargs["respect_context_window"] is True
         assert kwargs["cache"] is True
         assert "max_rpm" not in kwargs
@@ -45,7 +45,7 @@ def test_all_agents_apply_execution_controls(builder, settings: Settings) -> Non
 def test_execution_controls_match_shared_constant() -> None:
     assert AGENT_EXECUTION_CONTROLS == {
         "max_iter": 2,
-        "max_execution_time": 75,
+        "max_execution_time": 150,
         "respect_context_window": True,
         "cache": True,
     }
