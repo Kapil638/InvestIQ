@@ -6,6 +6,8 @@ import {
   generateReport,
   getAdvisorRecommendations,
   getFinancialSummary,
+  getReport,
+  listReports,
 } from '@/lib/api'
 import type {
   AdvisorRecommendResponse,
@@ -148,7 +150,32 @@ export function HomePage() {
       const result = await generateReport(selectedCompany.ticker)
       setReport(result)
     } catch (err) {
-      setReportError(err instanceof Error ? err.message : 'Failed to generate report')
+      const message = err instanceof Error ? err.message : 'Failed to generate report'
+
+      // A dropped connection doesn't always mean the generation itself
+      // failed - the multi-minute pipeline can finish and save successfully
+      // server-side just before a response fails to make it back (e.g. a
+      // server restart at exactly the wrong moment). Check history for a
+      // report that just appeared for this ticker before telling the user
+      // to regenerate and burn more LLM cost re-running work that may have
+      // already succeeded.
+      if (message.includes('Cannot reach the InvestIQ backend')) {
+        try {
+          const recent = await listReports({ ticker: selectedCompany.ticker, limit: 1 })
+          const candidate = recent.items[0]
+          const generatedRecently =
+            candidate && Date.now() - new Date(candidate.generated_at).getTime() < 10 * 60 * 1000
+          if (generatedRecently) {
+            const stored = await getReport(candidate.id)
+            setReport(stored.report)
+            return
+          }
+        } catch {
+          // fall through to showing the original error
+        }
+      }
+
+      setReportError(message)
     } finally {
       setReportLoading(false)
     }
