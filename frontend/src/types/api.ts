@@ -110,6 +110,23 @@ export interface NewsResearchResponse {
   data_sources?: string[]
 }
 
+export interface ShareholdingSnapshot {
+  period: string | null
+  promoter_percent: number | null
+  fii_percent: number | null
+  dii_percent: number | null
+  public_percent: number | null
+  promoter_change_qoq: number | null
+}
+
+export interface AnalystForecastSummary {
+  rating: string | null
+  price_target: number | null
+  eps_estimate: number | null
+  revenue_estimate: number | null
+  period: string | null
+}
+
 export interface FinancialSummaryResponse {
   ticker: string
   company_name: string
@@ -125,6 +142,8 @@ export interface FinancialSummaryResponse {
   revenue_growth: number | null
   profit_margin: number | null
   dividend_yield: number | null
+  shareholding?: ShareholdingSnapshot | null
+  analyst_forecast?: AnalystForecastSummary | null
   data_source: string
   price_source?: string
   fundamentals_source?: string

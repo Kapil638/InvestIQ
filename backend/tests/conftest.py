@@ -27,6 +27,21 @@ def _no_owner_auth_gate_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("ALLOWED_OWNER_EMAILS", "")
 
 
+@pytest.fixture(autouse=True)
+def _no_response_cache_leaking_between_tests(monkeypatch: pytest.MonkeyPatch):
+    """Same rationale as _no_owner_auth_gate_by_default above: the real local
+    .env's CACHE_ENABLED shouldn't leak into tests. Without this, turning it
+    on locally makes the process-global ttl_cache store actually persist
+    entries across test functions (same symbol/key reused across files),
+    bleeding one test's mocked data into another's assertions."""
+    from app.utils import ttl_cache
+
+    monkeypatch.setenv("CACHE_ENABLED", "false")
+    ttl_cache.clear_all()
+    yield
+    ttl_cache.clear_all()
+
+
 @pytest.fixture
 def mock_provider() -> AsyncMock:
     provider = AsyncMock()

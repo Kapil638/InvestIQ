@@ -287,6 +287,19 @@ class FinancialDataService:
                 current_price = kite_price
                 price_source = normalize_source_slug(kite_source)
 
+        shareholding = None
+        analyst_forecast = None
+        if self._tapetide is not None and self._tapetide.enabled:
+            shareholding_result, forecast_result = await asyncio.gather(
+                self._tapetide.get_shareholding_snapshot(symbol),
+                self._tapetide.get_forecast_summary(symbol),
+                return_exceptions=True,
+            )
+            if not isinstance(shareholding_result, Exception):
+                shareholding = shareholding_result
+            if not isinstance(forecast_result, Exception):
+                analyst_forecast = forecast_result
+
         return FinancialSummaryResponse(
             ticker=symbol,
             company_name=profile.company_name or "",
@@ -304,6 +317,8 @@ class FinancialDataService:
             revenue_growth=extra.get("revenue_growth"),
             profit_margin=ratio_row.net_profit_margin if ratio_row else None,
             dividend_yield=extra.get("dividend_yield"),
+            shareholding=shareholding,
+            analyst_forecast=analyst_forecast,
             data_source=fundamentals_source,
             fundamentals_source=fundamentals_source,
             price_source=price_source,

@@ -12,7 +12,13 @@ from app.providers.tapetide_mcp_provider import TapetideMcpProvider
 from app.providers.ticker import normalize_indian_ticker
 from app.providers.yahoo_finance_provider import YahooFinanceProvider
 from app.schemas.company_search import CompanySearchResult
-from app.schemas.financial import CompanyProfile, HistoricalPricePoint, MarketData
+from app.schemas.financial import (
+    AnalystForecastSummary,
+    CompanyProfile,
+    HistoricalPricePoint,
+    MarketData,
+    ShareholdingSnapshot,
+)
 from app.schemas.tapetide import TapetideHistoryResponse, TapetideQuoteResponse, TapetideStatusResponse
 from app.utils.exceptions import TapetideMcpNotEnabledError, TapetideMcpServiceError
 from app.utils.history_timeframe import filter_candles_by_date, yahoo_interval_for
@@ -141,6 +147,45 @@ class TapetideService:
 
         raise TapetideMcpServiceError(f"Quote unavailable for {symbol}")
 
+    async def get_batch_quotes(
+        self,
+        symbols: list[str],
+        *,
+        allow_yahoo_fallback: bool = True,
+    ) -> dict[str, TapetideQuoteResponse]:
+        """
+        Fetch quotes for multiple symbols in a single Tapetide call.
+
+        Tapetide's free tier is quota-limited (50 calls/day) - this exists so
+        the login-page ticker (10 NIFTY symbols) costs 1 call instead of 10.
+        Missing/failed symbols fall back to Yahoo individually; that doesn't
+        touch the Tapetide budget either way.
+        """
+        self.assert_enabled()
+        bare_symbols = [resolve_exchange_symbol(symbol)[0] for symbol in symbols]
+
+        results: dict[str, TapetideQuoteResponse] = {}
+        try:
+            raw = await self._provider.call_tool("get_batch_quotes", {"symbols": bare_symbols})
+            results = _parse_batch_quotes(raw, bare_symbols)
+        except TapetideMcpServiceError as exc:
+            logger.warning("Tapetide batch quote failed for %d symbols: %s", len(symbols), exc)
+            if not allow_yahoo_fallback:
+                raise
+
+        if allow_yahoo_fallback and self._yahoo is not None:
+            for original, bare in zip(symbols, bare_symbols):
+                existing = results.get(bare)
+                if existing is not None and existing.last_price is not None:
+                    continue
+                _, exchange = resolve_exchange_symbol(original)
+                try:
+                    results[bare] = await self._yahoo_quote_fallback(original, bare, exchange)
+                except TapetideMcpServiceError:
+                    continue
+
+        return results
+
     async def get_history(
         self,
         symbol: str,
@@ -208,6 +253,33 @@ class TapetideService:
         except TapetideMcpServiceError as exc:
             logger.debug("Tapetide profile unavailable for %s: %s", bare, exc)
             return None
+
+    async def get_shareholding_snapshot(self, symbol: str) -> ShareholdingSnapshot | None:
+        """Latest promoter/FII/DII/public holding split. No Yahoo fallback -
+        Yahoo doesn't carry this for Indian equities, so it's Tapetide-or-nothing."""
+        if not self.enabled:
+            return None
+        bare, _ = resolve_exchange_symbol(symbol)
+        try:
+            raw = await self._provider.call_tool(
+                "get_shareholding", {"symbol": bare, "type": "quarterly"}
+            )
+        except TapetideMcpServiceError as exc:
+            logger.debug("Tapetide shareholding unavailable for %s: %s", bare, exc)
+            return None
+        return _parse_shareholding(raw)
+
+    async def get_forecast_summary(self, symbol: str) -> AnalystForecastSummary | None:
+        """Compact analyst-consensus snapshot. Tapetide-only, same as shareholding."""
+        if not self.enabled:
+            return None
+        bare, _ = resolve_exchange_symbol(symbol)
+        try:
+            raw = await self._provider.call_tool("get_forecasts", {"symbol": bare})
+        except TapetideMcpServiceError as exc:
+            logger.debug("Tapetide forecasts unavailable for %s: %s", bare, exc)
+            return None
+        return _parse_forecast(raw)
 
     async def get_market_data(self, symbol: str) -> MarketData | None:
         try:
@@ -358,7 +430,7 @@ def _coerce_items(raw: Any) -> list[Any]:
     if isinstance(raw, list):
         return raw
     if isinstance(raw, dict):
-        for key in ("results", "data", "stocks", "symbols", "items", "matches"):
+        for key in ("results", "data", "stocks", "symbols", "items", "matches", "quotes"):
             value = raw.get(key)
             if isinstance(value, list):
                 return value
@@ -409,8 +481,7 @@ def _parse_search_results(raw: Any, *, limit: int) -> list[CompanySearchResult]:
     return results
 
 
-def _parse_quote_payload(raw: Any, bare: str, exchange: str) -> TapetideQuoteResponse:
-    data = _coerce_dict(raw)
+def _extract_quote_fields(data: dict[str, Any]) -> dict[str, Any]:
     nested = data.get("quote") if isinstance(data.get("quote"), dict) else data
 
     last_price = _as_float(
@@ -440,20 +511,77 @@ def _parse_quote_payload(raw: Any, bare: str, exchange: str) -> TapetideQuoteRes
         change = last_price - previous_close
         change_percent = (change / previous_close) * 100
 
+    return {
+        "last_price": last_price,
+        "open": open_price,
+        "high": high,
+        "low": low,
+        "close": close,
+        "previous_close": previous_close,
+        "volume": volume,
+        "change": change,
+        "change_percent": change_percent,
+    }
+
+
+def _parse_quote_payload(raw: Any, bare: str, exchange: str) -> TapetideQuoteResponse:
+    fields = _extract_quote_fields(_coerce_dict(raw))
     return TapetideQuoteResponse(
         symbol=normalize_indian_ticker(f"{bare}.{'BO' if exchange == 'BSE' else 'NS'}"),
         exchange=exchange,
-        last_price=last_price,
-        open=open_price,
-        high=high,
-        low=low,
-        close=close,
-        previous_close=previous_close,
-        volume=volume,
-        change=change,
-        change_percent=change_percent,
         source=TAPETIDE_MCP_SOURCE,
+        **fields,
     )
+
+
+def _parse_batch_quotes(raw: Any, bare_symbols: list[str]) -> dict[str, TapetideQuoteResponse]:
+    """
+    Parse get_batch_quotes' response into a per-symbol map.
+
+    Shape isn't documented beyond "quotes for multiple stocks" - handles the
+    plausible container shapes (a list under a wrapper key, a bare list, or a
+    dict keyed by symbol) rather than assuming one. Unverified against a live
+    response (Tapetide's daily quota was exhausted while wiring this up) -
+    worth a spot-check once the quota resets.
+    """
+    wanted = {symbol.upper() for symbol in bare_symbols}
+    results: dict[str, TapetideQuoteResponse] = {}
+
+    def _symbol_of(item: dict[str, Any]) -> str | None:
+        value = item.get("symbol") or item.get("ticker") or item.get("nse_symbol")
+        return str(value).upper().replace(".NS", "").replace(".BO", "") if value else None
+
+    if isinstance(raw, dict) and not any(
+        isinstance(raw.get(key), list) for key in ("quotes", "results", "data", "items")
+    ):
+        # Dict keyed directly by symbol, e.g. {"RELIANCE": {...}, "TCS": {...}}
+        candidate_keys = {str(k).upper() for k in raw}
+        if candidate_keys & wanted:
+            for key, value in raw.items():
+                symbol = str(key).upper()
+                if symbol in wanted and isinstance(value, dict):
+                    results[symbol] = TapetideQuoteResponse(
+                        symbol=normalize_indian_ticker(f"{symbol}.NS"),
+                        exchange="NSE",
+                        source=TAPETIDE_MCP_SOURCE,
+                        **_extract_quote_fields(value),
+                    )
+            return results
+
+    for item in _coerce_items(raw):
+        if not isinstance(item, dict):
+            continue
+        symbol = _symbol_of(item)
+        if symbol is None or symbol not in wanted:
+            continue
+        results[symbol] = TapetideQuoteResponse(
+            symbol=normalize_indian_ticker(f"{symbol}.NS"),
+            exchange="NSE",
+            source=TAPETIDE_MCP_SOURCE,
+            **_extract_quote_fields(item),
+        )
+
+    return results
 
 
 def _parse_company_profile(raw: Any, bare: str, exchange: str) -> CompanyProfile | None:
@@ -483,6 +611,83 @@ def _parse_company_profile(raw: Any, bare: str, exchange: str) -> CompanyProfile
         price=price,
         currency="INR",
         description=profile.get("description") or profile.get("about"),
+    )
+
+
+def _parse_shareholding(raw: Any) -> ShareholdingSnapshot | None:
+    """
+    Unverified against a live response - Tapetide's daily quota was exhausted
+    while wiring this up. Handles a time-series list (most recent period
+    first) or a single-period dict; spot-check field names once quota resets.
+    """
+    items = [item for item in _coerce_items(raw) if isinstance(item, dict)]
+    if not items:
+        single = _coerce_dict(raw)
+        items = [single] if single else []
+    if not items:
+        return None
+
+    def _row(item: dict[str, Any]) -> dict[str, float | None]:
+        return {
+            "promoter": _as_float(
+                item.get("promoter") or item.get("promoter_percent") or item.get("promoterHolding")
+            ),
+            "fii": _as_float(item.get("fii") or item.get("fii_percent") or item.get("fiiHolding")),
+            "dii": _as_float(item.get("dii") or item.get("dii_percent") or item.get("diiHolding")),
+            "public": _as_float(
+                item.get("public") or item.get("public_percent") or item.get("publicHolding")
+            ),
+        }
+
+    latest = _row(items[0])
+    if all(value is None for value in latest.values()):
+        return None
+
+    period = items[0].get("period") or items[0].get("quarter") or items[0].get("date")
+
+    promoter_change = None
+    if len(items) > 1:
+        prior = _row(items[1])
+        if latest["promoter"] is not None and prior["promoter"] is not None:
+            promoter_change = latest["promoter"] - prior["promoter"]
+
+    return ShareholdingSnapshot(
+        period=str(period) if period else None,
+        promoter_percent=latest["promoter"],
+        fii_percent=latest["fii"],
+        dii_percent=latest["dii"],
+        public_percent=latest["public"],
+        promoter_change_qoq=promoter_change,
+    )
+
+
+def _parse_forecast(raw: Any) -> AnalystForecastSummary | None:
+    """Unverified against a live response - see _parse_shareholding above."""
+    data = _coerce_dict(raw)
+    nested = data.get("forecast") if isinstance(data.get("forecast"), dict) else data
+    if not nested:
+        items = [item for item in _coerce_items(raw) if isinstance(item, dict)]
+        nested = items[0] if items else {}
+
+    rating = nested.get("rating") or nested.get("consensus") or nested.get("recommendation")
+    price_target = _as_float(
+        nested.get("price_target") or nested.get("target_price") or nested.get("priceTarget")
+    )
+    eps_estimate = _as_float(nested.get("eps_estimate") or nested.get("eps") or nested.get("epsEstimate"))
+    revenue_estimate = _as_float(
+        nested.get("revenue_estimate") or nested.get("revenue") or nested.get("revenueEstimate")
+    )
+    period = nested.get("period") or nested.get("fiscal_period")
+
+    if rating is None and price_target is None and eps_estimate is None and revenue_estimate is None:
+        return None
+
+    return AnalystForecastSummary(
+        rating=str(rating) if rating else None,
+        price_target=price_target,
+        eps_estimate=eps_estimate,
+        revenue_estimate=revenue_estimate,
+        period=str(period) if period else None,
     )
 
 

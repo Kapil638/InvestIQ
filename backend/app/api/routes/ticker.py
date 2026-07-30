@@ -39,8 +39,6 @@ TOP_NIFTY_SYMBOLS: list[tuple[str, str]] = [
     ("HINDUNILVR", "Hindustan Unilever"),
 ]
 
-_MAX_CONCURRENT_QUOTES = 5
-
 # Independent, always-on cache for this endpoint specifically - it's public
 # and unauthenticated (unlike every other route in this app), so it needs its
 # own abuse-resistant TTL regardless of the global CACHE_ENABLED setting.
@@ -62,32 +60,28 @@ def _is_nse_market_open(now: datetime) -> bool:
     return open_time <= now <= close_time
 
 
-async def _fetch_quote(
-    tapetide: TapetideService, semaphore: asyncio.Semaphore, symbol: str, name: str
-) -> TickerItem | None:
-    async with semaphore:
-        try:
-            quote = await tapetide.get_quote(symbol)
-        except Exception as exc:  # noqa: BLE001 — one bad symbol must not sink the whole banner
-            logger.warning("Ticker quote unavailable for %s: %s", symbol, exc)
-            return None
-        if quote.last_price is None:
-            return None
-        return TickerItem(
+async def _build_ticker_response(tapetide: TapetideService) -> TickerResponse:
+    now = datetime.now(_IST)
+    symbols = [symbol for symbol, _ in TOP_NIFTY_SYMBOLS]
+
+    try:
+        # One batch call for all 10 symbols instead of 10 single-quote calls -
+        # Tapetide's free tier is a shared 50-calls/day budget across the app.
+        quotes = await tapetide.get_batch_quotes(symbols)
+    except Exception as exc:  # noqa: BLE001 — a bad batch call must not sink the whole banner
+        logger.warning("Ticker batch quote unavailable: %s", exc)
+        quotes = {}
+
+    items = [
+        TickerItem(
             symbol=symbol,
             name=name,
             price=quote.last_price,
             change_percent=quote.change_percent,
         )
-
-
-async def _build_ticker_response(tapetide: TapetideService) -> TickerResponse:
-    now = datetime.now(_IST)
-    semaphore = asyncio.Semaphore(_MAX_CONCURRENT_QUOTES)
-    results = await asyncio.gather(
-        *(_fetch_quote(tapetide, semaphore, symbol, name) for symbol, name in TOP_NIFTY_SYMBOLS)
-    )
-    items = [item for item in results if item is not None]
+        for symbol, name in TOP_NIFTY_SYMBOLS
+        if (quote := quotes.get(symbol)) is not None and quote.last_price is not None
+    ]
     return TickerResponse(
         market_open=_is_nse_market_open(now),
         as_of=now.isoformat(),

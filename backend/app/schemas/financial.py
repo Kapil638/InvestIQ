@@ -98,6 +98,27 @@ class HistoricalPricePoint(BaseModel):
     volume: int | None = None
 
 
+class ShareholdingSnapshot(BaseModel):
+    """Latest promoter/FII/DII/public holding split, via Tapetide."""
+
+    period: str | None = None
+    promoter_percent: float | None = None
+    fii_percent: float | None = None
+    dii_percent: float | None = None
+    public_percent: float | None = None
+    promoter_change_qoq: float | None = None
+
+
+class AnalystForecastSummary(BaseModel):
+    """Compact analyst consensus snapshot, via Tapetide."""
+
+    rating: str | None = None
+    price_target: float | None = None
+    eps_estimate: float | None = None
+    revenue_estimate: float | None = None
+    period: str | None = None
+
+
 class FinancialSummaryResponse(BaseModel):
     """Compact financial snapshot for Indian equities (MVP test endpoint)."""
 
@@ -115,6 +136,8 @@ class FinancialSummaryResponse(BaseModel):
     revenue_growth: float | None = None
     profit_margin: float | None = None
     dividend_yield: float | None = None
+    shareholding: ShareholdingSnapshot | None = None
+    analyst_forecast: AnalystForecastSummary | None = None
     data_source: str = "yahoo"
     price_source: str = "yahoo"
     fundamentals_source: str = "yahoo"

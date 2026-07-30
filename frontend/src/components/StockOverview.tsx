@@ -171,6 +171,7 @@ function StockOverviewInner({ company, financials, loading, error, onOpenAI }: S
               </dl>
             </div>
           </div>
+          <ShareholdingForecastCard financials={financials} />
           <ProsConsCard financials={financials} />
         </div>
       )}
@@ -226,6 +227,84 @@ function SnapshotItem({ label, value }: { label: string; value: string }) {
     <div>
       <dt className="text-xs text-muted-foreground">{label}</dt>
       <dd className="mt-0.5 text-sm font-medium">{value}</dd>
+    </div>
+  )
+}
+
+function ShareholdingForecastCard({ financials }: { financials: FinancialSummaryResponse | null }) {
+  const shareholding = financials?.shareholding
+  const forecast = financials?.analyst_forecast
+
+  const hasShareholding =
+    shareholding != null &&
+    (shareholding.promoter_percent != null ||
+      shareholding.fii_percent != null ||
+      shareholding.dii_percent != null ||
+      shareholding.public_percent != null)
+  const hasForecast =
+    forecast != null &&
+    (forecast.rating != null ||
+      forecast.price_target != null ||
+      forecast.eps_estimate != null ||
+      forecast.revenue_estimate != null)
+
+  if (!hasShareholding && !hasForecast) return null
+
+  return (
+    <div className="glass-card rounded-2xl p-5">
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="font-semibold">Shareholding & analyst view</h3>
+        <span className="rounded-md bg-violet-500/10 px-1.5 py-0.5 text-[10px] font-medium text-violet-200">
+          Tapetide
+        </span>
+      </div>
+      <div className="grid gap-6 sm:grid-cols-2">
+        {hasShareholding && (
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Shareholding{shareholding?.period ? ` · ${shareholding.period}` : ''}
+            </p>
+            <dl className="mt-3 grid grid-cols-2 gap-3">
+              <SnapshotItem label="Promoter" value={formatPercent(shareholding?.promoter_percent)} />
+              <SnapshotItem label="FII" value={formatPercent(shareholding?.fii_percent)} />
+              <SnapshotItem label="DII" value={formatPercent(shareholding?.dii_percent)} />
+              <SnapshotItem label="Public" value={formatPercent(shareholding?.public_percent)} />
+            </dl>
+            {shareholding?.promoter_change_qoq != null && (
+              <p
+                className={cn(
+                  'mt-2 flex items-center gap-1 text-xs font-medium',
+                  shareholding.promoter_change_qoq >= 0 ? 'text-primary' : 'text-amber-400',
+                )}
+              >
+                {shareholding.promoter_change_qoq >= 0 ? (
+                  <TrendingUp className="size-3.5" />
+                ) : (
+                  <TrendingDown className="size-3.5" />
+                )}
+                Promoter holding {shareholding.promoter_change_qoq >= 0 ? '+' : ''}
+                {shareholding.promoter_change_qoq.toFixed(2)}pp QoQ
+              </p>
+            )}
+          </div>
+        )}
+        {hasForecast && (
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Analyst forecast{forecast?.period ? ` · ${forecast.period}` : ''}
+            </p>
+            <dl className="mt-3 grid grid-cols-2 gap-3">
+              <SnapshotItem label="Rating" value={forecast?.rating || '—'} />
+              <SnapshotItem label="Price target" value={formatINR(forecast?.price_target)} />
+              <SnapshotItem label="EPS estimate" value={forecast?.eps_estimate?.toFixed(2) ?? '—'} />
+              <SnapshotItem
+                label="Revenue estimate"
+                value={forecast?.revenue_estimate != null ? formatINR(forecast.revenue_estimate, true) : '—'}
+              />
+            </dl>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

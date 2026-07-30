@@ -12,7 +12,7 @@ from app.api.routes import ticker as ticker_module
 from app.core.config import Settings
 from app.main import create_app
 from app.schemas.tapetide import TapetideQuoteResponse
-from app.utils.exceptions import TapetideMcpServiceError, TickerNotFoundError
+from app.utils.exceptions import TapetideMcpNotEnabledError
 
 
 @pytest.fixture(autouse=True)
@@ -28,13 +28,18 @@ def _make_client(mock_service: AsyncMock, **settings_kwargs) -> TestClient:
     return TestClient(app)
 
 
+def _all_symbol_quotes() -> dict[str, TapetideQuoteResponse]:
+    return {
+        symbol: TapetideQuoteResponse(symbol=symbol, last_price=100.0, change_percent=1.0)
+        for symbol, _ in ticker_module.TOP_NIFTY_SYMBOLS
+    }
+
+
 def test_ticker_route_is_not_gated() -> None:
     """The login page renders pre-session, so this route must stay open even
     when the owner-auth gate is configured - unlike every other market route."""
     mock_service = AsyncMock()
-    mock_service.get_quote.return_value = TapetideQuoteResponse(
-        symbol="RELIANCE", last_price=2945.6, change_percent=0.82
-    )
+    mock_service.get_batch_quotes.return_value = _all_symbol_quotes()
     client = _make_client(mock_service, allowed_owner_emails="owner@example.com")
 
     response = client.get("/api/v1/ticker/nifty-top10")
@@ -43,9 +48,7 @@ def test_ticker_route_is_not_gated() -> None:
 
 def test_ticker_route_returns_all_symbols() -> None:
     mock_service = AsyncMock()
-    mock_service.get_quote.return_value = TapetideQuoteResponse(
-        symbol="RELIANCE", last_price=2945.6, change_percent=0.82
-    )
+    mock_service.get_batch_quotes.return_value = _all_symbol_quotes()
     client = _make_client(mock_service)
 
     response = client.get("/api/v1/ticker/nifty-top10")
@@ -56,15 +59,28 @@ def test_ticker_route_returns_all_symbols() -> None:
     assert "as_of" in data
 
 
-def test_ticker_route_skips_symbols_with_failed_quotes() -> None:
+def test_ticker_route_uses_one_batch_call() -> None:
+    """Regression guard for the quota fix: must be a single get_batch_quotes
+    call covering all symbols, not one get_quote call per symbol - Tapetide's
+    free tier is a shared 50-calls/day budget across the whole app."""
     mock_service = AsyncMock()
+    mock_service.get_batch_quotes.return_value = _all_symbol_quotes()
+    client = _make_client(mock_service)
 
-    async def flaky_get_quote(symbol, **kwargs):
-        if symbol == "TCS":
-            raise TapetideMcpServiceError("boom")
-        return TapetideQuoteResponse(symbol=symbol, last_price=100.0, change_percent=1.0)
+    client.get("/api/v1/ticker/nifty-top10")
 
-    mock_service.get_quote.side_effect = flaky_get_quote
+    assert mock_service.get_batch_quotes.call_count == 1
+    called_symbols = mock_service.get_batch_quotes.call_args.args[0]
+    assert set(called_symbols) == {symbol for symbol, _ in ticker_module.TOP_NIFTY_SYMBOLS}
+
+
+def test_ticker_route_skips_symbols_missing_from_batch_result() -> None:
+    """A symbol absent from the batch response (Tapetide had no data and its
+    own Yahoo fallback also came up empty) is skipped, not a crash."""
+    mock_service = AsyncMock()
+    quotes = _all_symbol_quotes()
+    del quotes["TCS"]
+    mock_service.get_batch_quotes.return_value = quotes
     client = _make_client(mock_service)
 
     response = client.get("/api/v1/ticker/nifty-top10")
@@ -74,39 +90,28 @@ def test_ticker_route_skips_symbols_with_failed_quotes() -> None:
     assert len(symbols) == len(ticker_module.TOP_NIFTY_SYMBOLS) - 1
 
 
-def test_ticker_route_survives_non_tapetide_exceptions() -> None:
-    """Regression test: observed in production - Tapetide's Yahoo fallback
-    raised TickerNotFoundError (a sibling of TapetideMcpServiceError, not a
-    subclass) for one symbol, which wasn't caught and crashed the entire
-    endpoint (404 for all 10 stocks) instead of just skipping that symbol."""
+def test_ticker_route_survives_batch_call_failure() -> None:
+    """If the whole batch call throws (e.g. Tapetide disabled/unreachable and
+    its own Yahoo fallback also failed), the endpoint still returns 200 with
+    an empty item list instead of a 500."""
     mock_service = AsyncMock()
-
-    async def flaky_get_quote(symbol, **kwargs):
-        if symbol == "HDFCBANK":
-            raise TickerNotFoundError("No Yahoo Finance data found for ticker: HDFCBANK.NS")
-        return TapetideQuoteResponse(symbol=symbol, last_price=100.0, change_percent=1.0)
-
-    mock_service.get_quote.side_effect = flaky_get_quote
+    mock_service.get_batch_quotes.side_effect = TapetideMcpNotEnabledError("disabled")
     client = _make_client(mock_service)
 
     response = client.get("/api/v1/ticker/nifty-top10")
     assert response.status_code == 200
-    symbols = [item["symbol"] for item in response.json()["items"]]
-    assert "HDFCBANK" not in symbols
-    assert len(symbols) == len(ticker_module.TOP_NIFTY_SYMBOLS) - 1
+    assert response.json()["items"] == []
 
 
 def test_ticker_route_caches_response_briefly() -> None:
     mock_service = AsyncMock()
-    mock_service.get_quote.return_value = TapetideQuoteResponse(
-        symbol="RELIANCE", last_price=2945.6, change_percent=0.82
-    )
+    mock_service.get_batch_quotes.return_value = _all_symbol_quotes()
     client = _make_client(mock_service)
 
     client.get("/api/v1/ticker/nifty-top10")
     client.get("/api/v1/ticker/nifty-top10")
 
-    assert mock_service.get_quote.call_count == len(ticker_module.TOP_NIFTY_SYMBOLS)
+    assert mock_service.get_batch_quotes.call_count == 1
 
 
 @pytest.mark.parametrize(
