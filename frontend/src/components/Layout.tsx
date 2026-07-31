@@ -1,14 +1,16 @@
 import type { ReactNode } from 'react'
-import { Link, NavLink, useNavigate } from 'react-router-dom'
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { Activity, BarChart3, Briefcase, History, LogOut, Search, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStatus } from '@/hooks/useAuthStatus'
 import { logout } from '@/lib/api'
 import { invalidateAuthStatusCache } from '@/lib/statusCache'
 import { Button } from '@/components/ui/button'
+import { MarketTicker } from '@/components/MarketTicker'
 
 export function Layout({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
+  const location = useLocation()
   const { status, gateConfigured } = useAuthStatus()
 
   async function handleLogout() {
@@ -23,6 +25,7 @@ export function Layout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-background">
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,_oklch(0.22_0.04_155/_0.35),_transparent_50%)]" />
+      {location.pathname === '/' && <MarketTicker />}
       <header className="sticky top-0 z-50 border-b border-border/60 bg-card/40 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
           <Link to="/" className="flex items-center gap-2.5 font-semibold text-foreground">
