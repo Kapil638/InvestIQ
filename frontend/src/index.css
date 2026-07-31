@@ -446,7 +446,11 @@
 
   .market-ticker-track {
     width: max-content;
-    animation: market-ticker-scroll 32s linear infinite;
+    animation: market-ticker-scroll 38s linear infinite;
+  }
+
+  .market-ticker-bar:hover .market-ticker-track {
+    animation-play-state: paused;
   }
 
   .login-bg-grid {

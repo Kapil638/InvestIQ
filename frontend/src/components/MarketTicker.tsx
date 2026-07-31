@@ -82,7 +82,7 @@ export function MarketTicker() {
   if (failed || items.length === 0) return null
 
   return (
-    <div className="relative z-10 flex h-9 shrink-0 items-center overflow-hidden border-b border-border/60 bg-black/40 backdrop-blur-sm">
+    <div className="market-ticker-bar relative z-10 flex h-9 shrink-0 items-center overflow-hidden border-b border-border/60 bg-black/40 backdrop-blur-sm">
       <div className="flex shrink-0 items-center gap-1.5 border-r border-border/60 bg-black/30 px-3 py-1.5">
         {marketOpen ? (
           <>
